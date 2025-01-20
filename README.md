@@ -18,7 +18,7 @@ Features:
 ### Setup
 #### Clone the repository
 ```
-git clone https://github.com/[your-username]/chinwag.git
+git clone https://github.com/ChillScientist/ChinWag.git
 ```
 #### Navigate to project directory
 ```
