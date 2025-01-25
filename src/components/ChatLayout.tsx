@@ -34,7 +34,6 @@ export function ChatLayout() {
   const [generatingNameForSession, setGeneratingNameForSession] = useState<string | null>(null);
   const [generatingTagsForSession, setGeneratingTagsForSession] = useState<string | null>(null);
   const [generatingNotesForSession, setGeneratingNotesForSession] = useState<string | null>(null);
-  const [streamingSessions, setStreamingSessions] = useState<Set<string>>(new Set());
 
   // Sessions state
   const [sessions, setSessions] = useState<ChatSession[]>(() => {
@@ -121,43 +120,32 @@ export function ChatLayout() {
     }
   };
 
-  const handleUpdateSession = async (updatedSession: ChatSession) => {
-    // If this is the start of a streaming response, add the session to streamingSessions
-    const isStartingStream = 
-      updatedSession.messages[updatedSession.messages.length - 1]?.role === 'assistant' &&
-      updatedSession.messages[updatedSession.messages.length - 1]?.content === '';
-    
-    if (isStartingStream) {
-      setStreamingSessions(prev => new Set(prev).add(updatedSession.id));
-    }
+  const handleUpdateSession = async (updates: Partial<ChatSession> & { isStreaming?: boolean }) => {
+    const updatedSession = {
+      ...sessions.find(s => s.id === currentSessionId)!,
+      ...updates,
+      updatedAt: new Date()
+    };
 
-    // If this is the end of a streaming response, remove from streamingSessions
-    const previousSession = sessions.find(s => s.id === updatedSession.id);
-    const isEndingStream = 
-      previousSession?.messages.length !== updatedSession.messages.length &&
-      streamingSessions.has(updatedSession.id);
-
-    if (isEndingStream) {
-      setStreamingSessions(prev => {
-        const next = new Set(prev);
-        next.delete(updatedSession.id);
-        return next;
-      });
-
-      // Auto-generate metadata if this is a new conversation
-      if (updatedSession.name === DEFAULT_SESSION_NAME) {
-        await Promise.all([
-          handleGenerateSessionName(updatedSession.id),
-          handleGenerateSessionTags(updatedSession.id),
-          handleGenerateSessionNotes(updatedSession.id)
-        ]);
-      }
-    }
-
-    // Update the session
+    // Always update the session immediately
     setSessions(prev => prev.map(session =>
       session.id === updatedSession.id ? updatedSession : session
     ));
+
+    // If we're still streaming, don't do anything else
+    if (updates.isStreaming) {
+      return;
+    }
+
+    // If streaming has finished (isStreaming: false) and this is a new conversation,
+    // generate metadata
+    if (updates.isStreaming === false && updatedSession.name === DEFAULT_SESSION_NAME) {
+      await Promise.all([
+        handleGenerateSessionName(updatedSession.id),
+        handleGenerateSessionTags(updatedSession.id),
+        handleGenerateSessionNotes(updatedSession.id)
+      ]);
+    }
   };
 
   const handleRenameSession = (sessionId: string, newName: string) => {
@@ -335,8 +323,6 @@ export function ChatLayout() {
         <div className="flex-1 flex">
           <Chat
             session={currentSession}
-            models={models}
-            isLoadingModels={isLoadingModels}
             onUpdateSession={handleUpdateSession}
           />
           <SettingsSidebar
@@ -344,9 +330,8 @@ export function ChatLayout() {
             models={models}
             isLoadingModels={isLoadingModels}
             onUpdateSession={(updates) => handleUpdateSession({
-              ...currentSession,
               ...updates,
-              updatedAt: new Date()
+              isStreaming: false // Settings updates are never streaming
             })}
           />
         </div>

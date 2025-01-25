@@ -8,7 +8,7 @@ import type { Message, ChatSession } from './types';
 
 interface ChatProps {
   session: ChatSession;
-  onUpdateSession: (session: ChatSession) => void;
+  onUpdateSession: (updates: Partial<ChatSession> & { isStreaming?: boolean }) => void;
 }
 
 export function Chat({ session, onUpdateSession }: ChatProps) {
@@ -57,14 +57,6 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
     };
   }, []);
 
-  const updateSession = (updates: Partial<ChatSession>) => {
-    onUpdateSession({
-      ...session,
-      ...updates,
-      updatedAt: new Date()
-    });
-  };
-
   const handleStop = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -81,7 +73,7 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
 
   const handleDelete = (indexToDelete: number) => {
     const newMessages = session.messages.filter((_, index) => index !== indexToDelete);
-    updateSession({ messages: newMessages });
+    onUpdateSession({ messages: newMessages });
     if (editingIndex === indexToDelete) {
       setEditingIndex(null);
     }
@@ -105,7 +97,7 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
       ...newMessages[editingIndex],
       content: editContent
     };
-    updateSession({ messages: newMessages });
+    onUpdateSession({ messages: newMessages });
     setEditingIndex(null);
     setEditContent('');
   };
@@ -118,7 +110,11 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
 
     const userMessage: Message = { role: 'user', content: message };
     const newMessages = [...session.messages, userMessage];
-    updateSession({ messages: newMessages });
+    // Mark start of streaming
+    onUpdateSession({ 
+      messages: newMessages,
+      isStreaming: true 
+    });
     setMessage('');
 
     try {
@@ -127,8 +123,10 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
         ...newMessages
       ];
 
-      updateSession({ 
-        messages: [...newMessages, { role: 'assistant', content: '' }]
+      // Add empty assistant message
+      onUpdateSession({ 
+        messages: [...newMessages, { role: 'assistant', content: '' }],
+        isStreaming: true
       });
 
       const client = new Ollama({
@@ -146,21 +144,32 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
       for await (const chunk of response) {
         if (abortControllerRef.current === null) break;
         streamedContent += chunk.message.content;
-        updateSession({ 
+        onUpdateSession({ 
           messages: [
             ...newMessages, 
             { role: 'assistant', content: streamedContent }
-          ]
+          ],
+          isStreaming: true
         });
       }
+
+      // Mark end of streaming with final content
+      onUpdateSession({ 
+        messages: [
+          ...newMessages, 
+          { role: 'assistant', content: streamedContent }
+        ],
+        isStreaming: false
+      });
     } catch (error) {
       if (error.name !== 'AbortError') {
         console.error('Chat error:', error);
-        updateSession({ 
+        onUpdateSession({ 
           messages: [
             ...newMessages, 
             { role: 'assistant', content: 'Error: Failed to get response' }
-          ]
+          ],
+          isStreaming: false
         });
       }
     }
@@ -186,7 +195,10 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
 
       const newMessages = [...session.messages];
       newMessages[lastAssistantIndex] = { role: 'assistant', content: '' };
-      updateSession({ messages: newMessages });
+      onUpdateSession({ 
+        messages: newMessages,
+        isStreaming: true 
+      });
 
       const client = new Ollama({
         host: 'http://127.0.0.1:11434'
@@ -207,8 +219,21 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
           role: 'assistant',
           content: streamedContent
         };
-        updateSession({ messages: newMessages });
+        onUpdateSession({ 
+          messages: newMessages,
+          isStreaming: true 
+        });
       }
+
+      // Mark end of streaming with final content
+      newMessages[lastAssistantIndex] = {
+        role: 'assistant',
+        content: streamedContent
+      };
+      onUpdateSession({ 
+        messages: newMessages,
+        isStreaming: false 
+      });
     } catch (error) {
       if (error.name !== 'AbortError') {
         console.error('Regeneration error:', error);
@@ -217,7 +242,10 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
           role: 'assistant',
           content: 'Error: Failed to regenerate response'
         };
-        updateSession({ messages: newMessages });
+        onUpdateSession({ 
+          messages: newMessages,
+          isStreaming: false
+        });
       }
     }
 
