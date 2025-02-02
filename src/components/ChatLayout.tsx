@@ -22,6 +22,8 @@ function createNewSession(): ChatSession {
     model: '',
     tags: [],
     notes: '',
+    isBookmarked: false,
+    isFavorite: false,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -48,6 +50,8 @@ export function ChatLayout() {
         model: session.model || '',
         tags: session.tags || [],
         notes: session.notes || '',
+        isBookmarked: session.isBookmarked || false,
+        isFavorite: session.isFavorite || false,
         options: session.options,
         createdAt: new Date(session.createdAt),
         updatedAt: new Date(session.updatedAt)
@@ -118,6 +122,22 @@ export function ChatLayout() {
       const remainingSessions = sessions.filter(s => s.id !== sessionId);
       setCurrentSessionId(remainingSessions[0]?.id || '');
     }
+  };
+
+  const handleToggleBookmark = (sessionId: string) => {
+    setSessions(prev => prev.map(session =>
+      session.id === sessionId
+        ? { ...session, isBookmarked: !session.isBookmarked, updatedAt: new Date() }
+        : session
+    ));
+  };
+
+  const handleToggleFavorite = (sessionId: string) => {
+    setSessions(prev => prev.map(session =>
+      session.id === sessionId
+        ? { ...session, isFavorite: !session.isFavorite, updatedAt: new Date() }
+        : session
+    ));
   };
 
   const handleUpdateSession = async (updates: Partial<ChatSession> & { isStreaming?: boolean }) => {
@@ -318,6 +338,8 @@ export function ChatLayout() {
         onGenerateSessionTags={handleGenerateSessionTags}
         onUpdateSessionNotes={handleUpdateSessionNotes}
         onGenerateSessionNotes={handleGenerateSessionNotes}
+        onToggleBookmark={handleToggleBookmark}
+        onToggleFavorite={handleToggleFavorite}
       />
       {currentSession && (
         <div className="flex-1 flex">

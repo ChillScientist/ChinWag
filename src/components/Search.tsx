@@ -1,7 +1,7 @@
 import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, X } from 'lucide-react';
+import { Search, X, Bookmark, Star } from 'lucide-react';
 import type { ChatSession, Message } from './types';
 import { cn } from '@/lib/utils';
 
@@ -14,6 +14,7 @@ export interface SearchQuery {
     tag?: string;
     note?: string;
     in?: string;
+    type?: 'bookmarked' | 'favorite';
   };
 }
 
@@ -28,7 +29,6 @@ interface SearchProps {
   className?: string;
 }
 
-
 const parseSearchQuery = (input: string): SearchQuery => {
   const operators = {
     system: '',
@@ -36,17 +36,29 @@ const parseSearchQuery = (input: string): SearchQuery => {
     tag: '',
     note: '',
     in: '',
+    type: undefined as 'bookmarked' | 'favorite' | undefined,
   };
   
   let text = input;
 
   // Match operator patterns like "operator:value" or operator:"value with spaces"
-  const operatorPattern = /(system|name|tag|note|in):("([^"]+)"|(\S+))/g;
+  const operatorPattern = /(system|name|tag|note|in|type):("([^"]+)"|(\S+))/g;
   let match;
 
   while ((match = operatorPattern.exec(input)) !== null) {
     const [fullMatch, operator, _, quotedValue, unquotedValue] = match;
-    operators[operator] = quotedValue || unquotedValue;
+    const value = quotedValue || unquotedValue;
+    
+    if (isValidOperator(operator)) {
+      if (operator === 'type') {
+        if (value.toLowerCase() === 'bookmarked' || value.toLowerCase() === 'favorite') {
+          operators.type = value.toLowerCase() as 'bookmarked' | 'favorite';
+        }
+      } else {
+        (operators as any)[operator] = value;
+      }
+    }
+    
     text = text.replace(fullMatch, '').trim();
   }
 
@@ -55,9 +67,14 @@ const parseSearchQuery = (input: string): SearchQuery => {
     text,
     operators: Object.fromEntries(
       Object.entries(operators).filter(([_, value]) => value !== '')
-    ),
+    ) as Partial<typeof operators>,
   };
 };
+
+// Type guard function
+function isValidOperator(key: string): key is 'system' | 'name' | 'tag' | 'note' | 'in' | 'type' {
+  return ['system', 'name', 'tag', 'note', 'in', 'type'].includes(key);
+}
 
 const searchMessages = (messages: Message[], searchText: string): boolean => {
   const lowerText = searchText.toLowerCase();
@@ -75,7 +92,7 @@ const filterSessions = (sessions: ChatSession[], query: SearchQuery): ChatSessio
     if (query.operators.name && !session.name.toLowerCase().includes(query.operators.name.toLowerCase())) {
       return false;
     }
-    if (query.operators.tag && !session.tags.some(tag => tag.toLowerCase().includes(query.operators.tag.toLowerCase()))) {
+    if (query.operators.tag && !session.tags.some(tag => tag.toLowerCase().includes(query.operators.tag!.toLowerCase()))) {
       return false;
     }
     if (query.operators.note && !session.notes.toLowerCase().includes(query.operators.note.toLowerCase())) {
@@ -83,6 +100,14 @@ const filterSessions = (sessions: ChatSession[], query: SearchQuery): ChatSessio
     }
     if (query.operators.in && !searchMessages(session.messages, query.operators.in)) {
       return false;
+    }
+    if (query.operators.type) {
+      if (query.operators.type === 'bookmarked' && !session.isBookmarked) {
+        return false;
+      }
+      if (query.operators.type === 'favorite' && !session.isFavorite) {
+        return false;
+      }
     }
 
     // If we have no general search text, we matched all operators
@@ -106,39 +131,114 @@ const filterSessions = (sessions: ChatSession[], query: SearchQuery): ChatSessio
 };
 
 export function SearchBox({ sessions, placeholder = 'Search...', onFilter, className }: SearchProps) {
-    const [searchText, setSearchText] = React.useState('');
+  const [searchText, setSearchText] = React.useState('');
+  const [isBookmarkFilter, setIsBookmarkFilter] = React.useState(false);
+  const [isFavoriteFilter, setIsFavoriteFilter] = React.useState(false);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const newValue = e.target.value;
-        setSearchText(newValue);
-        const query = parseSearchQuery(newValue);
-        onFilter(filterSessions(sessions, query));
-    };
+  const handleSearchChange = (newText: string, bookmarked: boolean, favorite: boolean) => {
+    let finalText = newText;
+    
+    // Add or remove type:bookmarked operator
+    if (bookmarked) {
+      if (!finalText.includes('type:bookmarked')) {
+        finalText = `${finalText.trim()} type:bookmarked`.trim();
+      }
+    } else {
+      finalText = finalText.replace(/\s*type:bookmarked\s*/, ' ').trim();
+    }
+    
+    // Add or remove type:favorite operator
+    if (favorite) {
+      if (!finalText.includes('type:favorite')) {
+        finalText = `${finalText.trim()} type:favorite`.trim();
+      }
+    } else {
+      finalText = finalText.replace(/\s*type:favorite\s*/, ' ').trim();
+    }
+    
+    setSearchText(finalText);
+    const query = parseSearchQuery(finalText);
+    onFilter(filterSessions(sessions, query));
+  };
 
-    const handleClear = () => {
-        setSearchText('');
-        onFilter(sessions);
-    };
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setSearchText(newValue);
+    
+    // Parse the new value to check if it contains type operators
+    const query = parseSearchQuery(newValue);
+    setIsBookmarkFilter(query.operators.type === 'bookmarked');
+    setIsFavoriteFilter(query.operators.type === 'favorite');
+    
+    onFilter(filterSessions(sessions, query));
+  };
 
-    return (
-        <div className={cn("relative flex items-center", className)}>
+  const handleClear = () => {
+    setSearchText('');
+    setIsBookmarkFilter(false);
+    setIsFavoriteFilter(false);
+    onFilter(sessions);
+  };
+
+  const toggleBookmarkFilter = () => {
+    const newState = !isBookmarkFilter;
+    setIsBookmarkFilter(newState);
+    handleSearchChange(searchText.replace(/\s*type:(bookmarked|favorite)\s*/g, ' '), newState, isFavoriteFilter);
+  };
+
+  const toggleFavoriteFilter = () => {
+    const newState = !isFavoriteFilter;
+    setIsFavoriteFilter(newState);
+    handleSearchChange(searchText.replace(/\s*type:(bookmarked|favorite)\s*/g, ' '), isBookmarkFilter, newState);
+  };
+
+  return (
+    <div className={cn("space-y-2", className)}>
+      <div className="relative flex items-center">
         <Search className="absolute left-2 h-4 w-4 text-muted-foreground" />
         <Input
-            value={searchText}
-            onChange={handleChange}
-            className="pl-8 pr-8"
-            placeholder={placeholder}
+          value={searchText}
+          onChange={handleChange}
+          className="pl-8 pr-8"
+          placeholder={placeholder}
         />
         {searchText && (
-            <Button
+          <Button
             variant="ghost"
             size="icon"
             className="absolute right-0 h-8 w-8"
             onClick={handleClear}
-            >
+          >
             <X className="h-4 w-4 text-gray-500 hover:text-red-500" />
-            </Button>
+          </Button>
         )}
-        </div>
-    );
+      </div>
+      <div className="flex gap-2">
+        <Button
+          variant={isBookmarkFilter ? "secondary" : "ghost"}
+          size="sm"
+          onClick={toggleBookmarkFilter}
+          className="flex-1"
+        >
+          <Bookmark className={cn(
+            "h-4 w-4 mr-2",
+            isBookmarkFilter && "fill-blue-500 text-blue-500"
+          )} />
+          Bookmarked
+        </Button>
+        <Button
+          variant={isFavoriteFilter ? "secondary" : "ghost"}
+          size="sm"
+          onClick={toggleFavoriteFilter}
+          className="flex-1"
+        >
+          <Star className={cn(
+            "h-4 w-4 mr-2",
+            isFavoriteFilter && "fill-yellow-400 text-yellow-400"
+          )} />
+          Favorites
+        </Button>
+      </div>
+    </div>
+  );
 }

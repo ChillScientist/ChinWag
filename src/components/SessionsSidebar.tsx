@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, MessageSquare, Pencil, Trash2, Wand2, ChevronLeft, Loader2, Check, X } from 'lucide-react';
+import { Plus, MessageSquare, Pencil, Trash2, Wand2, ChevronLeft, Loader2, Check, X, Bookmark, Star } from 'lucide-react';
 import { ResizableBox } from 'react-resizable';
 import { SearchBox } from './Search';
 import type { SessionsSidebarProps } from './types';
@@ -32,19 +32,33 @@ export function SessionsSidebar({
   onGenerateSessionTags,
   onUpdateSessionNotes,
   onGenerateSessionNotes,
+  onToggleBookmark,
+  onToggleFavorite,
 }: SessionsSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedWidth, setExpandedWidth] = useState(350);
   const [isResizing, setIsResizing] = useState(false);
   const [editState, setEditState] = useState<EditState | null>(null);
   const [filteredSessions, setFilteredSessions] = useState(sessions);
+  const [filter, setFilter] = useState<'all' | 'bookmarked' | 'favorites'>('all');
 
   const currentWidth = isCollapsed ? 50 : expandedWidth;
 
-  // Update filtered sessions when sessions prop changes
+  // Update filtered sessions when sessions prop or filter changes
   React.useEffect(() => {
-    setFilteredSessions(sessions);
-  }, [sessions]);
+    let filtered = [...sessions];
+    
+    switch (filter) {
+      case 'bookmarked':
+        filtered = filtered.filter(session => session.isBookmarked);
+        break;
+      case 'favorites':
+        filtered = filtered.filter(session => session.isFavorite);
+        break;
+    }
+    
+    setFilteredSessions(filtered);
+  }, [sessions, filter]);
 
   const startEditing = (type: 'name' | 'tags' | 'notes', sessionId: string, content: string) => {
     setEditState({ type, sessionId, content });
@@ -142,8 +156,36 @@ export function SessionsSidebar({
               <Plus className="h-4 w-4 mr-2" />
               New Chat
             </Button>
+            <div className="flex gap-2">
+              <Button
+                variant={filter === 'all' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="flex-1"
+                onClick={() => setFilter('all')}
+              >
+                All
+              </Button>
+              <Button
+                variant={filter === 'bookmarked' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="flex-1"
+                onClick={() => setFilter('bookmarked')}
+              >
+                <Bookmark className="h-4 w-4 mr-2" />
+                Bookmarked
+              </Button>
+              <Button
+                variant={filter === 'favorites' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="flex-1"
+                onClick={() => setFilter('favorites')}
+              >
+                <Star className="h-4 w-4 mr-2" />
+                Favorites
+              </Button>
+            </div>
             <SearchBox
-              sessions={sessions}
+              sessions={filteredSessions}
               onFilter={setFilteredSessions}
               placeholder="Search conversations..."
               className="w-full"
@@ -206,6 +248,34 @@ export function SessionsSidebar({
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
+                          onClick={() => onToggleBookmark(session.id)}
+                          title={session.isBookmarked ? "Remove bookmark" : "Add bookmark"}
+                        >
+                          <Bookmark 
+                            className={cn(
+                              "h-4 w-4 transition-colors",
+                              session.isBookmarked ? "fill-blue-500 text-blue-500" : "text-gray-500 hover:text-blue-500"
+                            )} 
+                          />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => onToggleFavorite(session.id)}
+                          title={session.isFavorite ? "Remove from favorites" : "Add to favorites"}
+                        >
+                          <Star 
+                            className={cn(
+                              "h-4 w-4 transition-colors",
+                              session.isFavorite ? "fill-yellow-400 text-yellow-400" : "text-gray-500 hover:text-yellow-400"
+                            )} 
+                          />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
                           onClick={() => startEditing('name', session.id, session.name)}
                         >
                           <Pencil className="h-4 w-4 text-gray-500 hover:text-blue-500" />
@@ -239,6 +309,7 @@ export function SessionsSidebar({
 
               {!isCollapsed && (
                 <>
+                  {/* Tags Section */}
                   <div className="px-2 py-1">
                     {editState?.type === 'tags' && editState.sessionId === session.id ? (
                       <div className="flex items-center gap-2">

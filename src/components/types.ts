@@ -16,6 +16,8 @@ export interface ChatSession {
   notes: string;   // New field for notes
   createdAt: Date;
   updatedAt: Date;
+  isBookmarked?: boolean;
+  isFavorite?: boolean;
 }
 
 export interface SessionsSidebarProps {
@@ -33,4 +35,6 @@ export interface SessionsSidebarProps {
   onGenerateSessionTags: (sessionId: string) => void;
   onUpdateSessionNotes: (sessionId: string, notes: string) => void;
   onGenerateSessionNotes: (sessionId: string) => void;
+  onToggleBookmark: (sessionId: string) => void;
+  onToggleFavorite: (sessionId: string) => void;  
 }

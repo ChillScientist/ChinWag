@@ -8,6 +8,7 @@ Features:
 - Automatic conversation naming and tagging
 - System prompt customization
 - Markdown support with code highlighting
+- Bookmarks and favorites support
 
 ## Getting Started
 ### Prerequisites
@@ -88,3 +89,8 @@ ollama pull llama2
 - Search is real-time
 - Search is weighted (name, tags, notes, message content)
 - Supports operators (system:, name:, tag:, nope:, in:)
+### Bookmarks and Favorites
+- The user can bookmark a session for quick access to in-progress or reference conversations
+- The user can favorite a session to mark it as particularly valuable or frequently accessed
+- The user can filter sessions by bookmarked or favorited status
+- The user can use search operators (type:bookmarked, type:favorite) to find marked sessions
