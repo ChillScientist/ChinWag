@@ -162,7 +162,7 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
         isStreaming: false
       });
     } catch (error) {
-      if (error.name !== 'AbortError') {
+      if (error instanceof Error && error.name !== 'AbortError') {
         console.error('Chat error:', error);
         onUpdateSession({ 
           messages: [
@@ -235,7 +235,7 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
         isStreaming: false 
       });
     } catch (error) {
-      if (error.name !== 'AbortError') {
+      if (error instanceof Error && error.name !== 'AbortError') {
         console.error('Regeneration error:', error);
         const newMessages = [...session.messages];
         newMessages[lastAssistantIndex] = {

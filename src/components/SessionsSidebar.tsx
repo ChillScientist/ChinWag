@@ -41,7 +41,6 @@ export function SessionsSidebar({
   const [editState, setEditState] = useState<EditState | null>(null);
   const [filteredSessions, setFilteredSessions] = useState(sessions);
   const [filter, setFilter] = useState<'all' | 'bookmarked' | 'favorites'>('all');
-
   const currentWidth = isCollapsed ? 50 : expandedWidth;
 
   // Update filtered sessions when sessions prop or filter changes
@@ -122,7 +121,7 @@ export function SessionsSidebar({
         !isResizing && "transition-[width] duration-200"
       )}
       onResizeStart={() => setIsResizing(true)}
-      onResizeStop={(e, { size }) => {
+      onResizeStop={(_, { size }) => {
         setIsResizing(false);
         if (!isCollapsed) {
           setExpandedWidth(size.width);
@@ -200,15 +199,19 @@ export function SessionsSidebar({
       
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-2">
-          {filteredSessions.map((session) => (
+        {filteredSessions.map((session) => {
+          const isActive = session.id === currentSessionId;
+          const showDetails = isActive;
+
+          return (
             <div
               key={session.id}
               className={cn(
-                "group rounded-lg hover:bg-accent",
-                session.id === currentSessionId && "bg-accent"
+                "group rounded-lg transition-all duration-200",
+                isActive ? "bg-accent" : "hover:bg-accent/50"
               )}
             >
-              {/* Name Section with Delete */}
+              {/* Session Header - Always Visible */}
               <div className="flex items-center min-w-0 w-full">
                 {editState?.type === 'name' && editState.sessionId === session.id ? (
                   <div className="flex flex-1 items-center gap-2 p-2 min-w-0">
@@ -307,7 +310,8 @@ export function SessionsSidebar({
                 )}
               </div>
 
-              {!isCollapsed && (
+              {/* Expandable Content */}
+              {showDetails && !isCollapsed && (
                 <>
                   {/* Tags Section */}
                   <div className="px-2 py-1">
@@ -441,7 +445,8 @@ export function SessionsSidebar({
                 </>
               )}
             </div>
-          ))}
+          );
+        })}
         </div>
       </ScrollArea>
     </ResizableBox>
