@@ -208,6 +208,7 @@ export function SearchBox({ sessions, placeholder = 'Search...', onFilter, class
             size="icon"
             className="absolute right-0 h-8 w-8"
             onClick={handleClear}
+            title="Clear search"
           >
             <X className="h-4 w-4 text-gray-500 hover:text-red-500" />
           </Button>

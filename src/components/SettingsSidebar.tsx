@@ -132,6 +132,7 @@ const SettingsSidebar = ({ session, models, isLoadingModels, onUpdateSession }: 
         size="sm"
         className="absolute -left-3 top-1/2 z-10 h-12 w-6 -translate-y-1/2 rounded-none border"
         onClick={() => setIsCollapsed(!isCollapsed)}
+        title={isCollapsed ? "Expand settings panel" : "Collapse settings panel"}
       >
         <ChevronRight className={cn(
           "h-4 w-4 transition-transform",

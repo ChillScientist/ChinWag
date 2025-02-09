@@ -289,6 +289,7 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
                       className="h-8 w-8 shrink-0"
                       onClick={handleRegenerate}
                       disabled={loading}
+                      title="Regenerate response"
                     >
                       <RotateCw className={`h-4 w-4 text-gray-500 hover:text-blue-500 ${loading ? 'animate-spin' : ''}`} />
                     </Button>
@@ -298,6 +299,7 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
                     size="icon"
                     className="h-8 w-8 shrink-0"
                     onClick={() => startEditing(index)}
+                    title="Edit message"
                   >
                     <Pencil className="h-4 w-4 text-gray-500 hover:text-blue-500" />
                   </Button>
@@ -306,6 +308,7 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
                     size="icon"
                     className="h-8 w-8 shrink-0"
                     onClick={() => handleDelete(index)}
+                    title="Delete message"
                   >
                     <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />
                   </Button>
@@ -328,6 +331,7 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
                           size="sm"
                           variant="outline"
                           onClick={cancelEditing}
+                          title="Cancel editing"
                         >
                           <X className="h-4 w-4" />
                         </Button>
@@ -335,6 +339,7 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
                           size="sm"
                           variant="outline"
                           onClick={saveEdit}
+                          title="Save changes"
                         >
                           <Check className="h-4 w-4" />
                         </Button>
@@ -408,6 +413,7 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
                 onClick={handleStop}
                 variant="destructive"
                 className="sm:self-end"
+                title="Stop generating response"
               >
                 <Square className="h-4 w-4 mr-2" />
                 Stop
@@ -417,6 +423,7 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
                 onClick={handleSend} 
                 disabled={!session.model}
                 className="sm:self-end"
+                title={!session.model ? "Select a model to begin" : "Send message"}
               >
                 Send
               </Button>

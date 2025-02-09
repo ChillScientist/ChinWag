@@ -141,6 +141,7 @@ export function SessionsSidebar({
         size="sm"
         className="absolute -right-3 top-1/2 z-10 h-12 w-6 -translate-y-1/2 rounded-none border"
         onClick={() => setIsCollapsed(!isCollapsed)}
+        title={isCollapsed ? "Expand conversations panel" : "Collapse conversations panel"}
       >
         <ChevronLeft className={cn(
           "h-4 w-4 transition-transform",
@@ -151,7 +152,7 @@ export function SessionsSidebar({
       <div className="p-4 border-b space-y-2">
         {!isCollapsed ? (
           <>
-            <Button onClick={onNewSession} className="w-full">
+            <Button onClick={onNewSession} className="w-full" title="Start a new conversation">
               <Plus className="h-4 w-4 mr-2" />
               New Chat
             </Button>
@@ -161,6 +162,7 @@ export function SessionsSidebar({
                 size="sm"
                 className="flex-1"
                 onClick={() => setFilter('all')}
+                title="Show all conversations"
               >
                 All
               </Button>
@@ -169,6 +171,7 @@ export function SessionsSidebar({
                 size="sm"
                 className="flex-1"
                 onClick={() => setFilter('bookmarked')}
+                title="Show bookmarked conversations"
               >
                 <Bookmark className="h-4 w-4 mr-2" />
                 Bookmarked
@@ -178,6 +181,7 @@ export function SessionsSidebar({
                 size="sm"
                 className="flex-1"
                 onClick={() => setFilter('favorites')}
+                title="Show favorite conversations"
               >
                 <Star className="h-4 w-4 mr-2" />
                 Favorites
@@ -280,6 +284,7 @@ export function SessionsSidebar({
                           size="icon"
                           className="h-8 w-8"
                           onClick={() => startEditing('name', session.id, session.name)}
+                          title="Rename conversation"
                         >
                           <Pencil className="h-4 w-4 text-gray-500 hover:text-blue-500" />
                         </Button>
@@ -289,6 +294,7 @@ export function SessionsSidebar({
                           className="h-8 w-8"
                           disabled={isGeneratingName === session.id}
                           onClick={() => onGenerateSessionName(session.id)}
+                          title="Generate name from content"
                         >
                           {isGeneratingName === session.id ? (
                             <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
@@ -301,6 +307,7 @@ export function SessionsSidebar({
                           size="icon"
                           className="h-8 w-8"
                           onClick={() => onDeleteSession(session.id)}
+                          title="Delete conversation"
                         >
                           <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />
                         </Button>
@@ -344,37 +351,40 @@ export function SessionsSidebar({
                           )}
                         </div>
                         <div className="flex gap-1 shrink-0">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => startEditing('tags', session.id, session.tags.join(', '))}
-                          >
-                            <Pencil className="h-4 w-4 text-gray-500 hover:text-blue-500" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            disabled={isGeneratingTags === session.id}
-                            onClick={() => onGenerateSessionTags(session.id)}
-                          >
-                            {isGeneratingTags === session.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
-                            ) : (
-                              <Wand2 className="h-4 w-4 text-gray-500 hover:text-blue-500" />
-                            )}
-                          </Button>
-                          {session.tags.length > 0 && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => handleClear(session.id, 'tags')}
-                            >
-                              <X className="h-4 w-4 text-gray-500 hover:text-red-500" />
-                            </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => startEditing('tags', session.id, session.tags.join(', '))}
+                          title="Edit tags"
+                        >
+                          <Pencil className="h-4 w-4 text-gray-500 hover:text-blue-500" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          disabled={isGeneratingTags === session.id}
+                          onClick={() => onGenerateSessionTags(session.id)}
+                          title="Generate tags from content"
+                        >
+                          {isGeneratingTags === session.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
+                          ) : (
+                            <Wand2 className="h-4 w-4 text-gray-500 hover:text-blue-500" />
                           )}
+                        </Button>
+                        {session.tags.length > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleClear(session.id, 'tags')}
+                            title="Clear all tags"
+                          >
+                            <X className="h-4 w-4 text-gray-500 hover:text-red-500" />
+                          </Button>
+                        )}
                         </div>
                       </div>
                     )}
@@ -407,37 +417,40 @@ export function SessionsSidebar({
                           {session.notes || 'No notes'}
                         </div>
                         <div className="flex gap-1 shrink-0">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => startEditing('notes', session.id, session.notes)}
-                          >
-                            <Pencil className="h-4 w-4 text-gray-500 hover:text-blue-500" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            disabled={isGeneratingNotes === session.id}
-                            onClick={() => onGenerateSessionNotes(session.id)}
-                          >
-                            {isGeneratingNotes === session.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
-                            ) : (
-                              <Wand2 className="h-4 w-4 text-gray-500 hover:text-blue-500" />
-                            )}
-                          </Button>
-                          {session.notes && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => handleClear(session.id, 'notes')}
-                            >
-                              <X className="h-4 w-4 text-gray-500 hover:text-red-500" />
-                            </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => startEditing('notes', session.id, session.notes)}
+                          title="Edit notes"
+                        >
+                          <Pencil className="h-4 w-4 text-gray-500 hover:text-blue-500" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          disabled={isGeneratingNotes === session.id}
+                          onClick={() => onGenerateSessionNotes(session.id)}
+                          title="Generate notes from content"
+                        >
+                          {isGeneratingNotes === session.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
+                          ) : (
+                            <Wand2 className="h-4 w-4 text-gray-500 hover:text-blue-500" />
                           )}
+                        </Button>
+                        {session.notes && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleClear(session.id, 'notes')}
+                            title="Clear notes"
+                          >
+                            <X className="h-4 w-4 text-gray-500 hover:text-red-500" />
+                          </Button>
+                        )}
                         </div>
                       </div>
                     )}
