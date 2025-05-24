@@ -36,5 +36,7 @@ export interface SessionsSidebarProps {
   onUpdateSessionNotes: (sessionId: string, notes: string) => void;
   onGenerateSessionNotes: (sessionId: string) => void;
   onToggleBookmark: (sessionId: string) => void;
-  onToggleFavorite: (sessionId: string) => void;  
+  onToggleFavorite: (sessionId: string) => void;
+  onExportSessions?: () => void;
+  onImportSessions?: (sessions: ChatSession[]) => void;
 }
