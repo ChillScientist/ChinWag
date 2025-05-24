@@ -321,6 +321,37 @@ export function ChatLayout() {
     }
   };
 
+  // Export sessions as JSON
+  const handleExportSessions = () => {
+    const data = JSON.stringify(sessions, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chat-sessions-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Import sessions from JSON
+  const handleImportSessions = (importedSessions: any[]) => {
+    // Validate and normalize imported sessions
+    const normalized = importedSessions.map((session: any) => ({
+      ...session,
+      createdAt: session.createdAt ? new Date(session.createdAt) : new Date(),
+      updatedAt: session.updatedAt ? new Date(session.updatedAt) : new Date(),
+      isBookmarked: session.isBookmarked || false,
+      isFavorite: session.isFavorite || false,
+      tags: session.tags || [],
+      notes: session.notes || '',
+      options: session.options,
+    }));
+    setSessions(normalized);
+    setCurrentSessionId(normalized[0]?.id || '');
+  };
+
   return (
     <div className="flex h-screen bg-white">
       <SessionsSidebar
@@ -340,6 +371,8 @@ export function ChatLayout() {
         onGenerateSessionNotes={handleGenerateSessionNotes}
         onToggleBookmark={handleToggleBookmark}
         onToggleFavorite={handleToggleFavorite}
+        onExportSessions={handleExportSessions}
+        onImportSessions={handleImportSessions}
       />
       {currentSession && (
         <div className="flex-1 flex">
