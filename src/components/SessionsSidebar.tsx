@@ -34,6 +34,8 @@ export function SessionsSidebar({
   onGenerateSessionNotes,
   onToggleBookmark,
   onToggleFavorite,
+  onExportSessions,
+  onImportSessions,
 }: SessionsSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedWidth, setExpandedWidth] = useState(350);
@@ -42,6 +44,9 @@ export function SessionsSidebar({
   const [filteredSessions, setFilteredSessions] = useState(sessions);
   const [filter, setFilter] = useState<'all' | 'bookmarked' | 'favorites'>('all');
   const currentWidth = isCollapsed ? 50 : expandedWidth;
+
+  // Import file input ref
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Update filtered sessions when sessions prop or filter changes
   React.useEffect(() => {
@@ -108,6 +113,33 @@ export function SessionsSidebar({
     }
   };
 
+  // Handle import button click
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Handle file input change
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        if (Array.isArray(json) && typeof onImportSessions === 'function') {
+          onImportSessions(json);
+        } else {
+          alert('Invalid session backup file.');
+        }
+      } catch {
+        alert('Failed to parse JSON file.');
+      }
+    };
+    reader.readAsText(file);
+    // Reset input so same file can be re-imported if needed
+    e.target.value = '';
+  };
+
   return (
     <ResizableBox
       width={currentWidth}
@@ -150,6 +182,21 @@ export function SessionsSidebar({
       </Button>
 
       <div className="p-4 border-b space-y-2">
+        <div className="flex gap-2 mb-2">
+          <Button variant="outline" size="sm" onClick={onExportSessions} title="Export sessions as JSON">
+            Export
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleImportClick} title="Import sessions from JSON">
+            Import
+          </Button>
+          <input
+            type="file"
+            accept="application/json"
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
+        </div>
         {!isCollapsed ? (
           <>
             <Button onClick={onNewSession} className="w-full" title="Start a new conversation">
