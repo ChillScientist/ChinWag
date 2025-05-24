@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { ResizableBox } from 'react-resizable';
 import { ChevronRight, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Switch } from '@/components/ui/switch';
 
 import 'react-resizable/css/styles.css';
 import { useState } from 'react';
@@ -24,6 +25,7 @@ interface SettingsSidebarProps {
       presence_penalty?: number;
       frequency_penalty?: number;
       stop?: string[];
+      stream?: boolean;
     };
   };
   models: { name: string }[];
@@ -38,7 +40,7 @@ const SettingsSidebar = ({ session, models, isLoadingModels, onUpdateSession }: 
 
   const currentWidth = isCollapsed ? 50 : expandedWidth;
 
-  const updateOption = (key: string, value: any) => {
+  const updateOption = (key: keyof typeof session.options | string, value: any) => {
     onUpdateSession({
       options: {
         ...(session.options || {}),
@@ -47,9 +49,9 @@ const SettingsSidebar = ({ session, models, isLoadingModels, onUpdateSession }: 
     });
   };
 
-  const resetOption = (key: string) => {
+  const resetOption = (key: keyof typeof session.options | string) => {
     const newOptions = { ...(session.options || {}) };
-    delete newOptions[key];
+    delete (newOptions as any)[key];
     if (Object.keys(newOptions).length === 0) {
       onUpdateSession({ options: undefined });
     } else {
@@ -59,20 +61,19 @@ const SettingsSidebar = ({ session, models, isLoadingModels, onUpdateSession }: 
 
   const renderSliderSetting = (
     label: string,
-    key: string,
+    key: keyof typeof session.options | string,
     min: number,
     max: number,
     step: number
   ) => {
-    const hasOverride = session.options?.[key] !== undefined;
-    
+    const hasOverride = session.options && (session.options as any)[key] !== undefined;
     return (
       <div className="space-y-2">
         <div className="flex justify-between items-center">
           <Label className={cn(hasOverride && "text-blue-600")}>{label}</Label>
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">
-              {hasOverride ? session.options[key].toFixed(2) : 'default'}
+              {hasOverride ? ((session.options as any)[key] as number)?.toFixed(2) : 'default'}
             </span>
             {hasOverride && (
               <Button
@@ -91,7 +92,7 @@ const SettingsSidebar = ({ session, models, isLoadingModels, onUpdateSession }: 
           min={min}
           max={max}
           step={step}
-          value={[session.options?.[key] ?? (max + min) / 2]}
+          value={[(session.options && (session.options as any)[key]) ?? (max + min) / 2]}
           onValueChange={([value]) => updateOption(key, value)}
           className={cn(!hasOverride && "opacity-50")}
         />
@@ -216,6 +217,15 @@ const SettingsSidebar = ({ session, models, isLoadingModels, onUpdateSession }: 
                   }
                 }}
                 placeholder="Comma-separated stop sequences"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Stream Responses</Label>
+              <Switch
+                checked={session.options?.stream !== false}
+                onCheckedChange={(checked) => updateOption('stream', checked ? true : false)}
+                className="ml-2"
               />
             </div>
           </div>

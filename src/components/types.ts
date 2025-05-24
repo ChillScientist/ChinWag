@@ -1,4 +1,8 @@
-import { Options } from "ollama";
+import { Options as OllamaOptions } from "ollama";
+
+export interface Options extends OllamaOptions {
+  stream?: boolean;
+}
 
 export interface Message {
   role: 'user' | 'assistant' | 'system';

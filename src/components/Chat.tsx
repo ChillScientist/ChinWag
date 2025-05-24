@@ -133,34 +133,49 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
         host: 'http://127.0.0.1:11434'
       });
 
-      const response = await client.chat({
-        model: session.model,
-        messages,
-        stream: true,
-        options: session.options
-      });
-
-      let streamedContent = '';
-      for await (const chunk of response) {
-        if (abortControllerRef.current === null) break;
-        streamedContent += chunk.message.content;
+      const streamEnabled = session.options?.stream !== false;
+      if (streamEnabled) {
+        const response = await client.chat({
+          model: session.model,
+          messages,
+          stream: true,
+          options: session.options
+        });
+        let streamedContent = '';
+        for await (const chunk of response) {
+          if (abortControllerRef.current === null) break;
+          streamedContent += chunk.message.content;
+          onUpdateSession({ 
+            messages: [
+              ...newMessages, 
+              { role: 'assistant', content: streamedContent }
+            ],
+            isStreaming: true
+          });
+        }
+        // Mark end of streaming with final content
         onUpdateSession({ 
           messages: [
             ...newMessages, 
             { role: 'assistant', content: streamedContent }
           ],
-          isStreaming: true
+          isStreaming: false
+        });
+      } else {
+        const response = await client.chat({
+          model: session.model,
+          messages,
+          stream: false,
+          options: session.options
+        });
+        onUpdateSession({
+          messages: [
+            ...newMessages,
+            { role: 'assistant', content: response.message.content }
+          ],
+          isStreaming: false
         });
       }
-
-      // Mark end of streaming with final content
-      onUpdateSession({ 
-        messages: [
-          ...newMessages, 
-          { role: 'assistant', content: streamedContent }
-        ],
-        isStreaming: false
-      });
     } catch (error) {
       if (error instanceof Error && error.name !== 'AbortError') {
         console.error('Chat error:', error);
@@ -204,36 +219,52 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
         host: 'http://127.0.0.1:11434'
       });
 
-      const response = await client.chat({
-        model: session.model,
-        messages,
-        stream: true,
-        options: session.options
-      });
-
-      let streamedContent = '';
-      for await (const chunk of response) {
-        if (abortControllerRef.current === null) break;
-        streamedContent += chunk.message.content;
+      const streamEnabled = session.options?.stream !== false;
+      if (streamEnabled) {
+        const response = await client.chat({
+          model: session.model,
+          messages,
+          stream: true,
+          options: session.options
+        });
+        let streamedContent = '';
+        for await (const chunk of response) {
+          if (abortControllerRef.current === null) break;
+          streamedContent += chunk.message.content;
+          newMessages[lastAssistantIndex] = {
+            role: 'assistant',
+            content: streamedContent
+          };
+          onUpdateSession({ 
+            messages: newMessages,
+            isStreaming: true 
+          });
+        }
+        // Mark end of streaming with final content
         newMessages[lastAssistantIndex] = {
           role: 'assistant',
           content: streamedContent
         };
         onUpdateSession({ 
           messages: newMessages,
-          isStreaming: true 
+          isStreaming: false 
+        });
+      } else {
+        const response = await client.chat({
+          model: session.model,
+          messages,
+          stream: false,
+          options: session.options
+        });
+        newMessages[lastAssistantIndex] = {
+          role: 'assistant',
+          content: response.message.content
+        };
+        onUpdateSession({
+          messages: newMessages,
+          isStreaming: false
         });
       }
-
-      // Mark end of streaming with final content
-      newMessages[lastAssistantIndex] = {
-        role: 'assistant',
-        content: streamedContent
-      };
-      onUpdateSession({ 
-        messages: newMessages,
-        isStreaming: false 
-      });
     } catch (error) {
       if (error instanceof Error && error.name !== 'AbortError') {
         console.error('Regeneration error:', error);
@@ -358,15 +389,15 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
                                 {...props} 
                               />
                             ),
-                            code: ({ node, inline, className, children, ...props }) => {
+                            code: ({ className, children, ...props }) => {
                               const match = /language-(\w+)/.exec(className || '');
                               return (
                                 <code
-                                  className={`${
-                                    inline
+                                  className={`$
+                                    {typeof children === 'string' && !/\n/.test(children)
                                       ? 'bg-gray-200 px-1 py-0.5 rounded text-sm'
-                                      : 'block bg-gray-800 text-gray-100 p-3 rounded-md text-sm overflow-x-auto'
-                                  } ${match ? `language-${match[1]}` : ''}`}
+                                      : 'block bg-gray-800 text-gray-100 p-3 rounded-md text-sm overflow-x-auto'}
+                                    ${match ? `language-${match[1]}` : ''}`}
                                   {...props}
                                 >
                                   {children}
