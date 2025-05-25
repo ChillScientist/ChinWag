@@ -219,25 +219,25 @@ export function SearchBox({ sessions, placeholder = 'Search...', onFilter, class
           variant={isBookmarkFilter ? "secondary" : "ghost"}
           size="sm"
           onClick={toggleBookmarkFilter}
-          className="flex-1"
+          className="flex-1 min-w-0 flex items-center justify-center gap-2 px-2 py-1 overflow-hidden"
         >
           <Bookmark className={cn(
-            "h-4 w-4 mr-2",
+            "h-4 w-4 mr-2 shrink-0",
             isBookmarkFilter && "fill-blue-500 text-blue-500"
           )} />
-          Bookmarked
+          <span className="truncate max-w-[80px] hidden sm:inline">Bookmarked</span>
         </Button>
         <Button
           variant={isFavoriteFilter ? "secondary" : "ghost"}
           size="sm"
           onClick={toggleFavoriteFilter}
-          className="flex-1"
+          className="flex-1 min-w-0 flex items-center justify-center gap-2 px-2 py-1 overflow-hidden"
         >
           <Star className={cn(
-            "h-4 w-4 mr-2",
+            "h-4 w-4 mr-2 shrink-0",
             isFavoriteFilter && "fill-yellow-400 text-yellow-400"
           )} />
-          Favorites
+          <span className="truncate max-w-[80px] hidden sm:inline">Favorites</span>
         </Button>
       </div>
     </div>
