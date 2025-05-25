@@ -38,7 +38,13 @@ export function SessionsSidebar({
   onImportSessions,
 }: SessionsSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [expandedWidth, setExpandedWidth] = useState(350);
+  // Persist sidebar width in localStorage
+  const SIDEBAR_WIDTH_KEY = 'sessionsSidebarWidth';
+  const getInitialWidth = () => {
+    const stored = typeof window !== 'undefined' ? localStorage.getItem(SIDEBAR_WIDTH_KEY) : null;
+    return stored ? parseInt(stored, 10) : 350;
+  };
+  const [expandedWidth, setExpandedWidth] = useState(getInitialWidth);
   const [isResizing, setIsResizing] = useState(false);
   const [editState, setEditState] = useState<EditState | null>(null);
   const [filteredSessions, setFilteredSessions] = useState(sessions);
@@ -157,6 +163,9 @@ export function SessionsSidebar({
         setIsResizing(false);
         if (!isCollapsed) {
           setExpandedWidth(size.width);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(SIDEBAR_WIDTH_KEY, String(size.width));
+          }
         }
       }}
       handle={

@@ -35,7 +35,13 @@ interface SettingsSidebarProps {
 
 const SettingsSidebar = ({ session, models, isLoadingModels, onUpdateSession }: SettingsSidebarProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [expandedWidth, setExpandedWidth] = useState(350);
+  // Persist sidebar width in localStorage
+  const SIDEBAR_WIDTH_KEY = 'settingsSidebarWidth';
+  const getInitialWidth = () => {
+    const stored = typeof window !== 'undefined' ? localStorage.getItem(SIDEBAR_WIDTH_KEY) : null;
+    return stored ? parseInt(stored, 10) : 350;
+  };
+  const [expandedWidth, setExpandedWidth] = useState(getInitialWidth);
   const [isResizing, setIsResizing] = useState(false);
 
   const currentWidth = isCollapsed ? 50 : expandedWidth;
@@ -113,10 +119,13 @@ const SettingsSidebar = ({ session, models, isLoadingModels, onUpdateSession }: 
         !isResizing && "transition-[width] duration-200"
       )}
       onResizeStart={() => setIsResizing(true)}
-      onResizeStop={(e, { size }) => {
+      onResizeStop={(_, { size }) => {
         setIsResizing(false);
         if (!isCollapsed) {
           setExpandedWidth(size.width);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(SIDEBAR_WIDTH_KEY, String(size.width));
+          }
         }
       }}
       handle={
