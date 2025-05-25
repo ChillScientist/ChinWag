@@ -216,31 +216,49 @@ export function SessionsSidebar({
               <Button
                 variant={filter === 'all' ? 'secondary' : 'ghost'}
                 size="sm"
-                className="flex-1"
+                className="flex-1 min-w-0 flex items-center justify-center gap-2 px-2 py-1 overflow-hidden"
                 onClick={() => setFilter('all')}
                 title="Show all conversations"
               >
-                All
+                <span
+                  className={
+                    expandedWidth < 180
+                      ? 'hidden'
+                      : 'block truncate max-w-[60px]'
+                  }
+                >All</span>
               </Button>
               <Button
                 variant={filter === 'bookmarked' ? 'secondary' : 'ghost'}
                 size="sm"
-                className="flex-1"
+                className="flex-1 min-w-0 flex items-center justify-center gap-2 px-2 py-1 overflow-hidden"
                 onClick={() => setFilter('bookmarked')}
                 title="Show bookmarked conversations"
               >
-                <Bookmark className="h-4 w-4 mr-2" />
-                Bookmarked
+                <Bookmark className="h-4 w-4" />
+                <span
+                  className={
+                    expandedWidth < 220
+                      ? 'hidden'
+                      : 'block truncate max-w-[80px]'
+                  }
+                >Bookmarked</span>
               </Button>
               <Button
                 variant={filter === 'favorites' ? 'secondary' : 'ghost'}
                 size="sm"
-                className="flex-1"
+                className="flex-1 min-w-0 flex items-center justify-center gap-2 px-2 py-1 overflow-hidden"
                 onClick={() => setFilter('favorites')}
                 title="Show favorite conversations"
               >
-                <Star className="h-4 w-4 mr-2" />
-                Favorites
+                <Star className="h-4 w-4" />
+                <span
+                  className={
+                    expandedWidth < 200
+                      ? 'hidden'
+                      : 'block truncate max-w-[70px]'
+                  }
+                >Favorites</span>
               </Button>
             </div>
             <SearchBox
