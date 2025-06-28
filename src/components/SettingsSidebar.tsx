@@ -40,7 +40,7 @@ const SettingsSidebar = ({ session }: SettingsSidebarProps) => {
   const [expandedWidth, setExpandedWidth] = useState(getInitialWidth);
   const [isResizing, setIsResizing] = useState(false);
 
-  const currentWidth = isCollapsed ? 0 : expandedWidth;
+  const currentWidth = isCollapsed ? 1 : expandedWidth; // Use 1px when collapsed
 
   if (!session) {
     return null;
@@ -138,8 +138,9 @@ const SettingsSidebar = ({ session }: SettingsSidebarProps) => {
         variant="secondary"
         size="sm"
         className={cn(
-          "absolute top-1/2 z-10 h-12 w-6 -translate-y-1/2 rounded-r-md rounded-l-none border-l-0",
-          isCollapsed ? "-left-0" : "-left-3" // Adjust position based on collapsed state
+          "absolute top-1/2 z-10 h-12 w-6 -translate-y-1/2 rounded-r-md rounded-l-none border-l-0 -left-3"
+          // Consistent position, icon will indicate action.
+          // isCollapsed ? "-left-0" : "-left-3" // Old logic
         )}
         onClick={() => setIsCollapsed(!isCollapsed)}
         title={isCollapsed ? "Expand settings panel" : "Collapse settings panel"}
