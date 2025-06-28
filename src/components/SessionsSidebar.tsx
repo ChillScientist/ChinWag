@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, MessageSquare, Pencil, Trash2, Wand2, ChevronLeft, Loader2, Check, X, Bookmark, Star } from 'lucide-react';
+import { Plus, MessageSquare, Pencil, Trash2, Wand2, ChevronLeft, ChevronRight, Loader2, Check, X, Bookmark, Star } from 'lucide-react'; // Added ChevronRight
 import { ResizableBox } from 'react-resizable';
 import { SearchBox } from './Search';
 // Remove SessionsSidebarProps import if it's no longer needed or defined elsewhere after refactor
@@ -186,10 +186,11 @@ export function SessionsSidebar() {
         onClick={() => setIsCollapsed(!isCollapsed)}
         title={isCollapsed ? "Expand conversations panel" : "Collapse conversations panel"}
       >
-        <ChevronLeft className={cn(
-          "h-4 w-4 transition-transform",
-          isCollapsed && "rotate-180"
-        )} />
+        {isCollapsed ? (
+          <ChevronRight className="h-4 w-4" /> // Points Right to expand
+        ) : (
+          <ChevronLeft className="h-4 w-4" />  // Points Left to collapse
+        )}
       </Button>
 
       <div className="p-4 border-b space-y-2">

@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { ResizableBox } from 'react-resizable';
-import { ChevronRight, RotateCcw } from 'lucide-react';
+import { ChevronRight, ChevronLeft, RotateCcw } from 'lucide-react'; // Added ChevronLeft
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { useSessionStore } from '@/stores/sessionStore';
@@ -127,9 +127,9 @@ const SettingsSidebar = ({ session }: SettingsSidebarProps) => {
       handle={
         <div
           className={cn(
-            "absolute left-0 top-0 -ml-1 w-2 h-full cursor-ew-resize flex items-center justify-center",
+            "absolute left-0 top-0 -ml-1 w-2 h-full cursor-ew-resize flex items-center justify-center hover:bg-blue-500/50", // Added hover effect
             isCollapsed && "hidden",
-            "group" // For potential future styling of handle
+            "group"
           )}
         />
       }
@@ -139,13 +139,15 @@ const SettingsSidebar = ({ session }: SettingsSidebarProps) => {
         size="sm"
         className={cn(
           "absolute top-1/2 z-10 h-12 w-6 -translate-y-1/2 rounded-r-md rounded-l-none border-l-0 -left-3"
-          // Consistent position, icon will indicate action.
-          // isCollapsed ? "-left-0" : "-left-3" // Old logic
         )}
         onClick={() => setIsCollapsed(!isCollapsed)}
         title={isCollapsed ? "Expand settings panel" : "Collapse settings panel"}
       >
-        <ChevronRight className={cn("h-4 w-4 transition-transform", !isCollapsed && "rotate-180")} />
+        {isCollapsed ? (
+          <ChevronRight className="h-4 w-4" /> // Points Right to expand
+        ) : (
+          <ChevronLeft className="h-4 w-4" />  // Points Left to collapse
+        )}
       </Button>
 
       <div className={cn("overflow-hidden", isCollapsed && "hidden")}>
