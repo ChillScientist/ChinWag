@@ -144,9 +144,9 @@ const SettingsSidebar = ({ session }: SettingsSidebarProps) => {
         title={isCollapsed ? "Expand settings panel" : "Collapse settings panel"}
       >
         {isCollapsed ? (
-          <ChevronRight className="h-4 w-4" /> // Points Right to expand
+          <ChevronLeft className="h-4 w-4" /> // Points Left to expand
         ) : (
-          <ChevronLeft className="h-4 w-4" />  // Points Left to collapse
+          <ChevronRight className="h-4 w-4" />  // Points Right to collapse
         )}
       </Button>
 
