@@ -2,53 +2,59 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { X, Check, Trash2, Pencil, RotateCw, Square } from 'lucide-react';
-import { Ollama } from 'ollama';
+import { Ollama } from 'ollama'; // Direct Ollama usage remains for now
 import ReactMarkdown from 'react-markdown';
 import type { Message, ChatSession } from './types';
+import { useSessionStore } from '@/stores/sessionStore';
+
+const DEFAULT_SESSION_NAME = 'New Chat'; // From ChatLayout, for checking if metadata should be generated
 
 interface ChatProps {
   session: ChatSession;
-  onUpdateSession: (updates: Partial<ChatSession> & { isStreaming?: boolean }) => void;
+  // onUpdateSession prop is removed; Chat component will use store actions directly
 }
 
-export function Chat({ session, onUpdateSession }: ChatProps) {
-  // UI State
+export function Chat({ session }: ChatProps) {
+  // Store actions and relevant state
+  const updateSessionMessages = useSessionStore(state => state.updateSessionMessages);
+  const setIsStreamingResponse = useSessionStore(state => state.setIsStreamingResponse);
+  const isStreamingResponse = useSessionStore(state => state.isStreamingResponse);
+  const generateSessionName = useSessionStore(state => state.generateSessionName);
+  const generateSessionTags = useSessionStore(state => state.generateSessionTags);
+  const generateSessionNotes = useSessionStore(state => state.generateSessionNotes);
+
+  // Local UI State
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(false);
+  // const [loading, setLoading] = useState(false); // Replaced by isStreamingResponse from store
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editContent, setEditContent] = useState('');
 
-  // Auto-scroll effect
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [session.messages]);
 
-  // Auto-focus effect
   useEffect(() => {
-    if (!loading) {
+    if (!isStreamingResponse) {
       inputRef.current?.focus();
     }
-  }, [loading]);
+  }, [isStreamingResponse]);
 
-  // Keyboard shortcut for regeneration
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.code === 'Space') {
         e.preventDefault();
-        if (!loading && session.messages.some(msg => msg.role === 'assistant')) {
+        if (!isStreamingResponse && session.messages.some(msg => msg.role === 'assistant')) {
           handleRegenerate();
         }
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [loading, session.messages]);
+  }, [isStreamingResponse, session.messages, session.id]); // Added session.id for stable deps
 
-  // Cleanup effect
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
@@ -62,7 +68,7 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
-    setLoading(false);
+    setIsStreamingResponse(false); // Ensure streaming state is reset
   };
 
   const isLastAssistantMessage = (index: number) => {
@@ -73,7 +79,7 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
 
   const handleDelete = (indexToDelete: number) => {
     const newMessages = session.messages.filter((_, index) => index !== indexToDelete);
-    onUpdateSession({ messages: newMessages });
+    updateSessionMessages(session.id, newMessages);
     if (editingIndex === indexToDelete) {
       setEditingIndex(null);
     }
@@ -91,197 +97,163 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
 
   const saveEdit = () => {
     if (editingIndex === null) return;
-    
     const newMessages = [...session.messages];
-    newMessages[editingIndex] = {
-      ...newMessages[editingIndex],
-      content: editContent
-    };
-    onUpdateSession({ messages: newMessages });
+    newMessages[editingIndex] = { ...newMessages[editingIndex], content: editContent };
+    updateSessionMessages(session.id, newMessages);
     setEditingIndex(null);
     setEditContent('');
+  };
+
+  const triggerMetadataGeneration = async () => {
+    if (session.name === DEFAULT_SESSION_NAME) {
+      // Use Promise.allSettled if you don't want one failure to stop others
+      await Promise.all([
+        generateSessionName(session.id),
+        generateSessionTags(session.id),
+        generateSessionNotes(session.id),
+      ]);
+    }
   };
 
   const handleSend = async () => {
     if (!message.trim() || !session.model) return;
 
-    setLoading(true);
+    setIsStreamingResponse(true);
     abortControllerRef.current = new AbortController();
 
     const userMessage: Message = { role: 'user', content: message };
-    const newMessages = [...session.messages, userMessage];
-    // Mark start of streaming
-    onUpdateSession({ 
-      messages: newMessages,
-      isStreaming: true 
-    });
+    let newMessages = [...session.messages, userMessage];
+    updateSessionMessages(session.id, newMessages); // Update with user message
     setMessage('');
 
+    // Add empty assistant message for streaming
+    newMessages = [...newMessages, { role: 'assistant', content: '' }];
+    updateSessionMessages(session.id, newMessages);
+
     try {
-      const messages = [
+      const messagesToApi = [
         { role: 'system', content: session.systemPrompt },
-        ...newMessages
+        ...newMessages.slice(0, -1) // Exclude the empty assistant message placeholder for API call
       ];
 
-      // Add empty assistant message
-      onUpdateSession({ 
-        messages: [...newMessages, { role: 'assistant', content: '' }],
-        isStreaming: true
-      });
-
-      const client = new Ollama({
-        host: 'http://127.0.0.1:11434'
-      });
-
+      const client = new Ollama({ host: 'http://127.0.0.1:11434' });
       const streamEnabled = session.options?.stream !== false;
+
       if (streamEnabled) {
         const response = await client.chat({
           model: session.model,
-          messages,
+          messages: messagesToApi,
           stream: true,
-          options: session.options
+          options: session.options,
+          signal: abortControllerRef.current.signal,
         });
         let streamedContent = '';
         for await (const chunk of response) {
-          if (abortControllerRef.current === null) break;
+          // Check abort signal here if not handled by ollama client
+          if (abortControllerRef.current === null || abortControllerRef.current.signal.aborted) break;
           streamedContent += chunk.message.content;
-          onUpdateSession({ 
-            messages: [
-              ...newMessages, 
-              { role: 'assistant', content: streamedContent }
-            ],
-            isStreaming: true
-          });
+          const currentMessages = useSessionStore.getState().sessions.find(s => s.id === session.id)?.messages || [];
+          const updatedAssistantMessages = [...currentMessages.slice(0, -1), { role: 'assistant', content: streamedContent }];
+          updateSessionMessages(session.id, updatedAssistantMessages);
         }
-        // Mark end of streaming with final content
-        onUpdateSession({ 
-          messages: [
-            ...newMessages, 
-            { role: 'assistant', content: streamedContent }
-          ],
-          isStreaming: false
-        });
       } else {
         const response = await client.chat({
           model: session.model,
-          messages,
+          messages: messagesToApi,
           stream: false,
-          options: session.options
+          options: session.options,
+          signal: abortControllerRef.current.signal,
         });
-        onUpdateSession({
-          messages: [
-            ...newMessages,
-            { role: 'assistant', content: response.message.content }
-          ],
-          isStreaming: false
-        });
+        const currentMessages = useSessionStore.getState().sessions.find(s => s.id === session.id)?.messages || [];
+        const finalMessages = [...currentMessages.slice(0, -1), { role: 'assistant', content: response.message.content }];
+        updateSessionMessages(session.id, finalMessages);
       }
+      await triggerMetadataGeneration(); // Generate metadata after successful response
     } catch (error) {
       if (error instanceof Error && error.name !== 'AbortError') {
         console.error('Chat error:', error);
-        onUpdateSession({ 
-          messages: [
-            ...newMessages, 
-            { role: 'assistant', content: 'Error: Failed to get response' }
-          ],
-          isStreaming: false
-        });
+        const currentMessages = useSessionStore.getState().sessions.find(s => s.id === session.id)?.messages || [];
+        const errorMessages = [...currentMessages.slice(0,-1), { role: 'assistant', content: 'Error: Failed to get response' }];
+        updateSessionMessages(session.id, errorMessages);
+      }
+    } finally {
+      setIsStreamingResponse(false);
+      if (abortControllerRef.current && !abortControllerRef.current.signal.aborted) {
+         abortControllerRef.current = null;
       }
     }
-
-    setLoading(false);
-    abortControllerRef.current = null;
   };
 
   const handleRegenerate = async () => {
-    if (loading) return;
+    if (isStreamingResponse) return;
 
-    const lastAssistantIndex = session.messages.findIndex((_, index) => isLastAssistantMessage(index));
+    const lastAssistantIndex = session.messages.map(m => m.role).lastIndexOf('assistant');
     if (lastAssistantIndex === -1) return;
 
-    setLoading(true);
+    setIsStreamingResponse(true);
     abortControllerRef.current = new AbortController();
 
+    // Messages up to the one before the last assistant message
+    const messagesForApi = [
+      { role: 'system', content: session.systemPrompt },
+      ...session.messages.slice(0, lastAssistantIndex)
+    ];
+
+    // Update UI: set last assistant message to empty for streaming
+    let currentSessionMessages = [...session.messages];
+    currentSessionMessages[lastAssistantIndex] = { role: 'assistant', content: '' };
+    updateSessionMessages(session.id, currentSessionMessages);
+
     try {
-      const messages = [
-        { role: 'system', content: session.systemPrompt },
-        ...session.messages.slice(0, lastAssistantIndex)
-      ];
-
-      const newMessages = [...session.messages];
-      newMessages[lastAssistantIndex] = { role: 'assistant', content: '' };
-      onUpdateSession({ 
-        messages: newMessages,
-        isStreaming: true 
-      });
-
-      const client = new Ollama({
-        host: 'http://127.0.0.1:11434'
-      });
-
+      const client = new Ollama({ host: 'http://127.0.0.1:11434' });
       const streamEnabled = session.options?.stream !== false;
+
       if (streamEnabled) {
         const response = await client.chat({
           model: session.model,
-          messages,
+          messages: messagesForApi,
           stream: true,
-          options: session.options
+          options: session.options,
+          signal: abortControllerRef.current.signal,
         });
         let streamedContent = '';
         for await (const chunk of response) {
-          if (abortControllerRef.current === null) break;
+          if (abortControllerRef.current === null || abortControllerRef.current.signal.aborted) break;
           streamedContent += chunk.message.content;
-          newMessages[lastAssistantIndex] = {
-            role: 'assistant',
-            content: streamedContent
-          };
-          onUpdateSession({ 
-            messages: newMessages,
-            isStreaming: true 
-          });
+          // Get the latest messages from store before updating
+          const latestMessages = useSessionStore.getState().sessions.find(s => s.id === session.id)?.messages || [];
+          const updatedMessages = [...latestMessages];
+          updatedMessages[lastAssistantIndex] = { role: 'assistant', content: streamedContent };
+          updateSessionMessages(session.id, updatedMessages);
         }
-        // Mark end of streaming with final content
-        newMessages[lastAssistantIndex] = {
-          role: 'assistant',
-          content: streamedContent
-        };
-        onUpdateSession({ 
-          messages: newMessages,
-          isStreaming: false 
-        });
       } else {
         const response = await client.chat({
           model: session.model,
-          messages,
+          messages: messagesForApi,
           stream: false,
-          options: session.options
+          options: session.options,
+          signal: abortControllerRef.current.signal,
         });
-        newMessages[lastAssistantIndex] = {
-          role: 'assistant',
-          content: response.message.content
-        };
-        onUpdateSession({
-          messages: newMessages,
-          isStreaming: false
-        });
+        const latestMessages = useSessionStore.getState().sessions.find(s => s.id === session.id)?.messages || [];
+        const updatedMessages = [...latestMessages];
+        updatedMessages[lastAssistantIndex] = { role: 'assistant', content: response.message.content };
+        updateSessionMessages(session.id, updatedMessages);
       }
+      await triggerMetadataGeneration(); // Generate metadata after successful response
     } catch (error) {
       if (error instanceof Error && error.name !== 'AbortError') {
         console.error('Regeneration error:', error);
-        const newMessages = [...session.messages];
-        newMessages[lastAssistantIndex] = {
-          role: 'assistant',
-          content: 'Error: Failed to regenerate response'
-        };
-        onUpdateSession({ 
-          messages: newMessages,
-          isStreaming: false
-        });
+        const latestMessages = useSessionStore.getState().sessions.find(s => s.id === session.id)?.messages || [];
+        const updatedMessages = [...latestMessages];
+        updatedMessages[lastAssistantIndex] = { role: 'assistant', content: 'Error: Failed to regenerate response' };
+        updateSessionMessages(session.id, updatedMessages);
+      }
+    } finally {
+      setIsStreamingResponse(false);
+       if (abortControllerRef.current && !abortControllerRef.current.signal.aborted) {
+         abortControllerRef.current = null;
       }
     }
-
-    setLoading(false);
-    abortControllerRef.current = null;
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -307,7 +279,7 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
           <div className="space-y-4">
             {session.messages.map((msg, index) => (
               <div
-                key={index}
+                key={`${session.id}-msg-${index}`} // More robust key
                 className={`flex items-start gap-2 ${
                   msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'
                 }`}
@@ -319,10 +291,10 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
                       size="icon"
                       className="h-8 w-8 shrink-0"
                       onClick={handleRegenerate}
-                      disabled={loading}
-                      title="Regenerate response"
+                      disabled={isStreamingResponse}
+                      title="Regenerate response (Ctrl+Space)"
                     >
-                      <RotateCw className={`h-4 w-4 text-gray-500 hover:text-blue-500 ${loading ? 'animate-spin' : ''}`} />
+                      <RotateCw className={`h-4 w-4 text-gray-500 hover:text-blue-500 ${isStreamingResponse && msg.role === 'assistant' ? 'animate-spin' : ''}`} />
                     </Button>
                   )}
                   <Button
@@ -393,11 +365,11 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
                               const match = /language-(\w+)/.exec(className || '');
                               return (
                                 <code
-                                  className={`$
-                                    {typeof children === 'string' && !/\n/.test(children)
-                                      ? 'bg-gray-200 px-1 py-0.5 rounded text-sm'
-                                      : 'block bg-gray-800 text-gray-100 p-3 rounded-md text-sm overflow-x-auto'}
-                                    ${match ? `language-${match[1]}` : ''}`}
+                                  className={`${
+                                    typeof children === 'string' && !/\n/.test(children)
+                                      ? 'bg-gray-200 px-1 py-0.5 rounded text-sm' // Inline code
+                                      : 'block bg-gray-800 text-gray-100 p-3 rounded-md text-sm overflow-x-auto' // Code block
+                                    } ${match ? `language-${match[1]}` : ''}`}
                                   {...props}
                                 >
                                   {children}
@@ -435,11 +407,11 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyPress}
               placeholder="Type your message... (Shift+Enter for new line)"
-              disabled={loading}
+              disabled={isStreamingResponse}
               className="min-h-[60px] resize-none"
               rows={3}
             />
-            {loading ? (
+            {isStreamingResponse ? (
               <Button 
                 onClick={handleStop}
                 variant="destructive"
@@ -452,7 +424,7 @@ export function Chat({ session, onUpdateSession }: ChatProps) {
             ) : (
               <Button 
                 onClick={handleSend} 
-                disabled={!session.model}
+                disabled={!session.model || isStreamingResponse}
                 className="sm:self-end"
                 title={!session.model ? "Select a model to begin" : "Send message"}
               >
