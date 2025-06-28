@@ -357,9 +357,33 @@ export const useSessionStore = create<SessionState>()(
   )
 );
 
-// Remove subscription logic related to isLoadingModels and fetchModels as it's not relevant anymore.
-// const unsubscribe = useSessionStore.subscribe((state, prevState) => {
-// });
+// Subscribe to modelStore to update sessions if their models are missing or invalid
+// once the model list is loaded.
+useModelStore.subscribe(
+  (modelState, prevModelState) => {
+    const { models, isLoadingModels } = modelState;
+    const { sessions, updateSession } = useSessionStore.getState();
+
+    if (!isLoadingModels && models.length > 0 && prevModelState.isLoadingModels) {
+      // Models just finished loading
+      const defaultModelName = models[0].name;
+      let sessionsUpdated = false;
+
+      const updatedSessions = sessions.map(session => {
+        const modelIsValid = models.some(m => m.name === session.model);
+        if (!session.model || !modelIsValid) {
+          sessionsUpdated = true;
+          return { ...session, model: defaultModelName, updatedAt: new Date() };
+        }
+        return session;
+      });
+
+      if (sessionsUpdated) {
+        useSessionStore.setState({ sessions: updatedSessions });
+      }
+    }
+  }
+);
 
 export default useSessionStore;
 

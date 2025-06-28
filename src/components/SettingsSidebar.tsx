@@ -31,7 +31,7 @@ const SettingsSidebar = ({ session }: SettingsSidebarProps) => {
   const updateSessionOptions = useSessionStore(state => state.updateSessionOptions);
 
   // Local UI state (remains the same)
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(false); // Default to false (visible) for now
   const SIDEBAR_WIDTH_KEY = 'settingsSidebarWidth';
   const getInitialWidth = () => {
     const stored = typeof window !== 'undefined' ? localStorage.getItem(SIDEBAR_WIDTH_KEY) : null;
@@ -109,7 +109,7 @@ const SettingsSidebar = ({ session }: SettingsSidebarProps) => {
         isCollapsed && "w-0 p-0 border-none",
         !isResizing && "transition-[width] duration-200"
       )}
-      height={Infinity}
+      // height={Infinity} // Removed duplicate
       minConstraints={[250, Infinity]}
       maxConstraints={[600, Infinity]}
       axis="x"
