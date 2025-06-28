@@ -127,9 +127,9 @@ const SettingsSidebar = ({ session }: SettingsSidebarProps) => {
       handle={
         <div
           className={cn(
-            "absolute left-0 top-0 -ml-1 w-2 h-full cursor-ew-resize flex items-center justify-center hover:bg-blue-500/50", // Added hover effect
-            isCollapsed && "hidden",
-            "group"
+            "absolute left-0 top-0 w-1 h-full cursor-ew-resize hover:bg-blue-500/50", // Changed w-2 to w-1, removed -ml-1 and flex utils
+            isCollapsed && "hidden"
+            // "group" // group might not be needed if not styling child on group-hover
           )}
         />
       }
