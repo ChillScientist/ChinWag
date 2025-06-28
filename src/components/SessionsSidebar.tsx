@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, MessageSquare, Pencil, Trash2, Wand2, ChevronLeft, Loader2, Check, X, Bookmark, Star } from 'lucide-react';
+import { Plus, MessageSquare, Pencil, Trash2, Wand2, ChevronLeft, ChevronRight, Loader2, Check, X, Bookmark, Star } from 'lucide-react'; // Added ChevronRight
 import { ResizableBox } from 'react-resizable';
 import { SearchBox } from './Search';
-import type { SessionsSidebarProps } from './types';
+// Remove SessionsSidebarProps import if it's no longer needed or defined elsewhere after refactor
+// import type { SessionsSidebarProps } from './types';
 import { cn } from '@/lib/utils';
+import { useSessionStore } from '@/stores/sessionStore';
+import type { ChatSession } from './types'; // Keep ChatSession type
 
 import 'react-resizable/css/styles.css';
 
@@ -17,28 +20,33 @@ interface EditState {
   content: string;
 }
 
-export function SessionsSidebar({
-  sessions,
-  currentSessionId,
-  isGeneratingName,
-  isGeneratingTags,
-  isGeneratingNotes,
-  onNewSession,
-  onSelectSession,
-  onDeleteSession,
-  onRenameSession,
-  onGenerateSessionName,
-  onUpdateSessionTags,
-  onGenerateSessionTags,
-  onUpdateSessionNotes,
-  onGenerateSessionNotes,
-  onToggleBookmark,
-  onToggleFavorite,
-  onExportSessions,
-  onImportSessions,
-}: SessionsSidebarProps) {
+// Removed props drilling; component will get data from Zustand store
+export function SessionsSidebar() {
+  // Zustand store selectors
+  const sessions = useSessionStore(state => state.sessions);
+  const currentSessionId = useSessionStore(state => state.currentSessionId);
+  const isGeneratingName = useSessionStore(state => state.isGeneratingNameForSessionId);
+  const isGeneratingTags = useSessionStore(state => state.isGeneratingTagsForSessionId);
+  const isGeneratingNotes = useSessionStore(state => state.isGeneratingNotesForSessionId);
+
+  // Zustand store actions
+  const onNewSession = useSessionStore(state => state.addSession);
+  const onSelectSession = useSessionStore(state => state.setCurrentSessionId);
+  const onDeleteSession = useSessionStore(state => state.deleteSession);
+  const onRenameSession = useSessionStore(state => state.renameSession);
+  const onGenerateSessionName = useSessionStore(state => state.generateSessionName);
+  const onUpdateSessionTags = useSessionStore(state => state.setSessionTags);
+  const onGenerateSessionTags = useSessionStore(state => state.generateSessionTags);
+  const onUpdateSessionNotes = useSessionStore(state => state.setSessionNotes);
+  const onGenerateSessionNotes = useSessionStore(state => state.generateSessionNotes);
+  const onToggleBookmark = useSessionStore(state => state.toggleBookmark);
+  const onToggleFavorite = useSessionStore(state => state.toggleFavorite);
+  const onExportSessions = useSessionStore(state => state.exportSessions);
+  const onImportSessions = useSessionStore(state => state.importSessions);
+
+
+  // Local UI state
   const [isCollapsed, setIsCollapsed] = useState(false);
-  // Persist sidebar width in localStorage
   const SIDEBAR_WIDTH_KEY = 'sessionsSidebarWidth';
   const getInitialWidth = () => {
     const stored = typeof window !== 'undefined' ? localStorage.getItem(SIDEBAR_WIDTH_KEY) : null;
@@ -47,27 +55,23 @@ export function SessionsSidebar({
   const [expandedWidth, setExpandedWidth] = useState(getInitialWidth);
   const [isResizing, setIsResizing] = useState(false);
   const [editState, setEditState] = useState<EditState | null>(null);
-  const [filteredSessions, setFilteredSessions] = useState(sessions);
+  const [filteredSessions, setFilteredSessions] = useState<ChatSession[]>(sessions); // Initialized with sessions from store
   const [filter, setFilter] = useState<'all' | 'bookmarked' | 'favorites'>('all');
   const currentWidth = isCollapsed ? 50 : expandedWidth;
 
-  // Import file input ref
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Update filtered sessions when sessions prop or filter changes
-  React.useEffect(() => {
-    let filtered = [...sessions];
-    
+  useEffect(() => {
+    let newFilteredSessions = [...sessions];
     switch (filter) {
       case 'bookmarked':
-        filtered = filtered.filter(session => session.isBookmarked);
+        newFilteredSessions = newFilteredSessions.filter(session => session.isBookmarked);
         break;
       case 'favorites':
-        filtered = filtered.filter(session => session.isFavorite);
+        newFilteredSessions = newFilteredSessions.filter(session => session.isFavorite);
         break;
     }
-    
-    setFilteredSessions(filtered);
+    setFilteredSessions(newFilteredSessions);
   }, [sessions, filter]);
 
   const startEditing = (type: 'name' | 'tags' | 'notes', sessionId: string, content: string) => {
@@ -80,7 +84,6 @@ export function SessionsSidebar({
 
   const handleSave = () => {
     if (!editState) return;
-
     const { type, sessionId, content } = editState;
     switch (type) {
       case 'name':
@@ -101,7 +104,6 @@ export function SessionsSidebar({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!editState) return;
-
     e.stopPropagation();
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -119,12 +121,10 @@ export function SessionsSidebar({
     }
   };
 
-  // Handle import button click
   const handleImportClick = () => {
     fileInputRef.current?.click();
   };
 
-  // Handle file input change
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -132,23 +132,25 @@ export function SessionsSidebar({
     reader.onload = (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
-        if (Array.isArray(json) && typeof onImportSessions === 'function') {
-          onImportSessions(json);
+        // Basic validation before calling import
+        if (Array.isArray(json) && json.every(item => typeof item === 'object' && item.id && item.name)) {
+          onImportSessions(json as ChatSession[]); // Assuming basic ChatSession structure
         } else {
-          alert('Invalid session backup file.');
+          alert('Invalid session backup file format.');
         }
-      } catch {
-        alert('Failed to parse JSON file.');
+      } catch (err) {
+        console.error("Failed to parse or import sessions:", err);
+        alert('Failed to parse JSON file or import sessions.');
       }
     };
     reader.readAsText(file);
-    // Reset input so same file can be re-imported if needed
-    e.target.value = '';
+    if (e.target) e.target.value = ''; // Reset input
   };
 
   return (
     <ResizableBox
       width={currentWidth}
+      height={Infinity}
       height={Infinity}
       minConstraints={[250, Infinity]}
       maxConstraints={[600, Infinity]}
@@ -184,20 +186,25 @@ export function SessionsSidebar({
         onClick={() => setIsCollapsed(!isCollapsed)}
         title={isCollapsed ? "Expand conversations panel" : "Collapse conversations panel"}
       >
-        <ChevronLeft className={cn(
-          "h-4 w-4 transition-transform",
-          isCollapsed && "rotate-180"
-        )} />
+        {isCollapsed ? (
+          <ChevronRight className="h-4 w-4" /> // Points Right to expand
+        ) : (
+          <ChevronLeft className="h-4 w-4" />  // Points Left to collapse
+        )}
       </Button>
 
       <div className="p-4 border-b space-y-2">
         <div className="flex gap-2 mb-2">
-          <Button variant="outline" size="sm" onClick={onExportSessions} title="Export sessions as JSON">
-            Export
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleImportClick} title="Import sessions from JSON">
-            Import
-          </Button>
+          {typeof onExportSessions === 'function' && ( // Check if function exists (it should from store)
+            <Button variant="outline" size="sm" onClick={onExportSessions} title="Export sessions as JSON">
+              Export
+            </Button>
+          )}
+          {typeof onImportSessions === 'function' && (
+            <Button variant="outline" size="sm" onClick={handleImportClick} title="Import sessions from JSON">
+              Import
+            </Button>
+          )}
           <input
             type="file"
             accept="application/json"
@@ -262,8 +269,9 @@ export function SessionsSidebar({
               </Button>
             </div>
             <SearchBox
-              sessions={filteredSessions}
-              onFilter={setFilteredSessions}
+              // sessions prop for SearchBox will come from local filteredSessions state
+              sessions={sessions} // Pass the all sessions from the store for search logic
+              onFilter={setFilteredSessions} // SearchBox will call this to update local filteredSessions
               placeholder="Search conversations..."
               className="w-full"
             />
@@ -277,9 +285,10 @@ export function SessionsSidebar({
       
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-2">
+        {/* Iterate over local filteredSessions state for display */}
         {filteredSessions.map((session) => {
           const isActive = session.id === currentSessionId;
-          const showDetails = isActive;
+          const showDetails = isActive; // Show details only for the active session
 
           return (
             <div
