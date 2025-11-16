@@ -14,7 +14,7 @@ export interface SearchQuery {
     tag?: string;
     note?: string;
     in?: string;
-    type?: 'bookmarked' | 'favorite';
+    type?: ('bookmarked' | 'favorite')[];
   };
 }
 
@@ -36,7 +36,7 @@ const parseSearchQuery = (input: string): SearchQuery => {
     tag: '',
     note: '',
     in: '',
-    type: undefined as 'bookmarked' | 'favorite' | undefined,
+    type: [] as ('bookmarked' | 'favorite')[],
   };
   
   let text = input;
@@ -51,8 +51,10 @@ const parseSearchQuery = (input: string): SearchQuery => {
     
     if (isValidOperator(operator)) {
       if (operator === 'type') {
-        if (value.toLowerCase() === 'bookmarked' || value.toLowerCase() === 'favorite') {
-          operators.type = value.toLowerCase() as 'bookmarked' | 'favorite';
+        const normalized = value.toLowerCase();
+        if ((normalized === 'bookmarked' || normalized === 'favorite') &&
+            !operators.type.includes(normalized as 'bookmarked' | 'favorite')) {
+          operators.type.push(normalized as 'bookmarked' | 'favorite');
         }
       } else {
         (operators as any)[operator] = value;
@@ -62,12 +64,19 @@ const parseSearchQuery = (input: string): SearchQuery => {
     text = text.replace(fullMatch, '').trim();
   }
 
+  const cleanedOperators = Object.fromEntries(
+    Object.entries(operators).filter(([key, value]) => {
+      if (key === 'type') {
+        return Array.isArray(value) && value.length > 0;
+      }
+      return value !== '';
+    })
+  ) as Partial<typeof operators>;
+
   return {
     raw: input,
     text,
-    operators: Object.fromEntries(
-      Object.entries(operators).filter(([_, value]) => value !== '')
-    ) as Partial<typeof operators>,
+    operators: cleanedOperators,
   };
 };
 
@@ -101,11 +110,11 @@ const filterSessions = (sessions: ChatSession[], query: SearchQuery): ChatSessio
     if (query.operators.in && !searchMessages(session.messages, query.operators.in)) {
       return false;
     }
-    if (query.operators.type) {
-      if (query.operators.type === 'bookmarked' && !session.isBookmarked) {
+    if (query.operators.type?.length) {
+      if (query.operators.type.includes('bookmarked') && !session.isBookmarked) {
         return false;
       }
-      if (query.operators.type === 'favorite' && !session.isFavorite) {
+      if (query.operators.type.includes('favorite') && !session.isFavorite) {
         return false;
       }
     }
@@ -137,25 +146,28 @@ export function SearchBox({ sessions, placeholder = 'Search...', onFilter, class
 
   const handleSearchChange = (newText: string, bookmarked: boolean, favorite: boolean) => {
     let finalText = newText;
-    
-    // Add or remove type:bookmarked operator
-    if (bookmarked) {
-      if (!finalText.includes('type:bookmarked')) {
-        finalText = `${finalText.trim()} type:bookmarked`.trim();
+
+    const updateToken = (text: string, token: 'type:bookmarked' | 'type:favorite', enabled: boolean) => {
+      const tokenPattern = new RegExp(`(^|\s)${token}(?=\s|$)`);
+
+      if (enabled) {
+        if (!tokenPattern.test(text)) {
+          return `${text}`.trim().length ? `${text.trim()} ${token}`.trim() : token;
+        }
+        return text;
       }
-    } else {
-      finalText = finalText.replace(/\s*type:bookmarked\s*/, ' ').trim();
-    }
-    
-    // Add or remove type:favorite operator
-    if (favorite) {
-      if (!finalText.includes('type:favorite')) {
-        finalText = `${finalText.trim()} type:favorite`.trim();
-      }
-    } else {
-      finalText = finalText.replace(/\s*type:favorite\s*/, ' ').trim();
-    }
-    
+
+      return text
+        .replace(new RegExp(`(^|\s)${token}(?=\s|$)`, 'g'), ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    };
+
+    finalText = updateToken(finalText, 'type:bookmarked', bookmarked);
+    finalText = updateToken(finalText, 'type:favorite', favorite);
+
+    finalText = finalText.trim();
+
     setSearchText(finalText);
     const query = parseSearchQuery(finalText);
     onFilter(filterSessions(sessions, query));
@@ -167,8 +179,8 @@ export function SearchBox({ sessions, placeholder = 'Search...', onFilter, class
     
     // Parse the new value to check if it contains type operators
     const query = parseSearchQuery(newValue);
-    setIsBookmarkFilter(query.operators.type === 'bookmarked');
-    setIsFavoriteFilter(query.operators.type === 'favorite');
+    setIsBookmarkFilter(query.operators.type?.includes('bookmarked') ?? false);
+    setIsFavoriteFilter(query.operators.type?.includes('favorite') ?? false);
     
     onFilter(filterSessions(sessions, query));
   };
@@ -183,13 +195,13 @@ export function SearchBox({ sessions, placeholder = 'Search...', onFilter, class
   const toggleBookmarkFilter = () => {
     const newState = !isBookmarkFilter;
     setIsBookmarkFilter(newState);
-    handleSearchChange(searchText.replace(/\s*type:(bookmarked|favorite)\s*/g, ' '), newState, isFavoriteFilter);
+    handleSearchChange(searchText, newState, isFavoriteFilter);
   };
 
   const toggleFavoriteFilter = () => {
     const newState = !isFavoriteFilter;
     setIsFavoriteFilter(newState);
-    handleSearchChange(searchText.replace(/\s*type:(bookmarked|favorite)\s*/g, ' '), isBookmarkFilter, newState);
+    handleSearchChange(searchText, isBookmarkFilter, newState);
   };
 
   return (
