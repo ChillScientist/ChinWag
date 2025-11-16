@@ -24,7 +24,7 @@ interface SearchProps {
   /** Placeholder text for the search input */
   placeholder?: string;
   /** Called with filtered sessions when search changes */
-  onFilter: (sessions: ChatSession[]) => void;
+  onFilter: (sessions: ChatSession[], hasActiveQuery: boolean) => void;
   /** Optional CSS class name */
   className?: string;
 }
@@ -194,9 +194,11 @@ export function SearchBox({ sessions, placeholder = 'Search...', onFilter, class
     handleSearchChange(searchText.replace(/\s*type:(bookmarked|favorite)\s*/g, ' '), isBookmarkFilter, newState);
   };
 
+  const hasActiveQuery = React.useMemo(() => Boolean(searchQuery.raw.trim()), [searchQuery.raw]);
+
   React.useEffect(() => {
-    onFilter(filterSessions(sessions, searchQuery));
-  }, [sessions, searchQuery, onFilter]);
+    onFilter(filterSessions(sessions, searchQuery), hasActiveQuery);
+  }, [sessions, searchQuery, onFilter, hasActiveQuery]);
 
   return (
     <div className={cn("space-y-2", className)}>

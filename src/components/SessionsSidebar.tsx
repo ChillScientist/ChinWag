@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -66,14 +66,15 @@ export function SessionsSidebar() {
         return sessions;
     }
   }, [sessions, filter]);
-  const [filteredSessions, setFilteredSessions] = useState<ChatSession[]>(quickFilteredSessions);
+  const [searchResults, setSearchResults] = useState<ChatSession[] | null>(null);
+  const displayedSessions = searchResults ?? quickFilteredSessions;
   const currentWidth = isCollapsed ? 50 : expandedWidth;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    setFilteredSessions(quickFilteredSessions);
-  }, [quickFilteredSessions]);
+  const handleSearchFilter = useCallback((results: ChatSession[], hasActiveQuery: boolean) => {
+    setSearchResults(hasActiveQuery ? results : null);
+  }, []);
 
   const startEditing = (type: 'name' | 'tags' | 'notes', sessionId: string, content: string) => {
     setEditState({ type, sessionId, content });
@@ -272,7 +273,7 @@ export function SessionsSidebar() {
             <SearchBox
               // Restrict search results to the currently quick-filtered subset
               sessions={quickFilteredSessions}
-              onFilter={setFilteredSessions}
+              onFilter={handleSearchFilter}
               placeholder="Search conversations..."
               className="w-full"
             />
@@ -286,8 +287,8 @@ export function SessionsSidebar() {
       
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-2">
-        {/* Iterate over local filteredSessions state for display */}
-        {filteredSessions.map((session) => {
+        {/* Iterate over merged quick-filter and search result state for display */}
+        {displayedSessions.map((session) => {
           const isActive = session.id === currentSessionId;
           const showDetails = isActive; // Show details only for the active session
 
