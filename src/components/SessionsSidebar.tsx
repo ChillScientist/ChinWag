@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -55,24 +55,25 @@ export function SessionsSidebar() {
   const [expandedWidth, setExpandedWidth] = useState(getInitialWidth);
   const [isResizing, setIsResizing] = useState(false);
   const [editState, setEditState] = useState<EditState | null>(null);
-  const [filteredSessions, setFilteredSessions] = useState<ChatSession[]>(sessions); // Initialized with sessions from store
   const [filter, setFilter] = useState<'all' | 'bookmarked' | 'favorites'>('all');
+  const quickFilteredSessions = useMemo(() => {
+    switch (filter) {
+      case 'bookmarked':
+        return sessions.filter(session => session.isBookmarked);
+      case 'favorites':
+        return sessions.filter(session => session.isFavorite);
+      default:
+        return sessions;
+    }
+  }, [sessions, filter]);
+  const [filteredSessions, setFilteredSessions] = useState<ChatSession[]>(quickFilteredSessions);
   const currentWidth = isCollapsed ? 50 : expandedWidth;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    let newFilteredSessions = [...sessions];
-    switch (filter) {
-      case 'bookmarked':
-        newFilteredSessions = newFilteredSessions.filter(session => session.isBookmarked);
-        break;
-      case 'favorites':
-        newFilteredSessions = newFilteredSessions.filter(session => session.isFavorite);
-        break;
-    }
-    setFilteredSessions(newFilteredSessions);
-  }, [sessions, filter]);
+    setFilteredSessions(quickFilteredSessions);
+  }, [quickFilteredSessions]);
 
   const startEditing = (type: 'name' | 'tags' | 'notes', sessionId: string, content: string) => {
     setEditState({ type, sessionId, content });
@@ -269,9 +270,9 @@ export function SessionsSidebar() {
               </Button>
             </div>
             <SearchBox
-              // sessions prop for SearchBox will come from local filteredSessions state
-              sessions={sessions} // Pass the all sessions from the store for search logic
-              onFilter={setFilteredSessions} // SearchBox will call this to update local filteredSessions
+              // Restrict search results to the currently quick-filtered subset
+              sessions={quickFilteredSessions}
+              onFilter={setFilteredSessions}
               placeholder="Search conversations..."
               className="w-full"
             />

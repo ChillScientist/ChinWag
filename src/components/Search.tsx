@@ -132,12 +132,13 @@ const filterSessions = (sessions: ChatSession[], query: SearchQuery): ChatSessio
 
 export function SearchBox({ sessions, placeholder = 'Search...', onFilter, className }: SearchProps) {
   const [searchText, setSearchText] = React.useState('');
+  const [searchQuery, setSearchQuery] = React.useState<SearchQuery>(() => parseSearchQuery(''));
   const [isBookmarkFilter, setIsBookmarkFilter] = React.useState(false);
   const [isFavoriteFilter, setIsFavoriteFilter] = React.useState(false);
 
   const handleSearchChange = (newText: string, bookmarked: boolean, favorite: boolean) => {
     let finalText = newText;
-    
+
     // Add or remove type:bookmarked operator
     if (bookmarked) {
       if (!finalText.includes('type:bookmarked')) {
@@ -157,27 +158,28 @@ export function SearchBox({ sessions, placeholder = 'Search...', onFilter, class
     }
     
     setSearchText(finalText);
-    const query = parseSearchQuery(finalText);
-    onFilter(filterSessions(sessions, query));
+    setSearchQuery(parseSearchQuery(finalText));
+    setIsBookmarkFilter(bookmarked);
+    setIsFavoriteFilter(favorite);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setSearchText(newValue);
-    
+
     // Parse the new value to check if it contains type operators
     const query = parseSearchQuery(newValue);
     setIsBookmarkFilter(query.operators.type === 'bookmarked');
     setIsFavoriteFilter(query.operators.type === 'favorite');
-    
-    onFilter(filterSessions(sessions, query));
+
+    setSearchQuery(query);
   };
 
   const handleClear = () => {
     setSearchText('');
     setIsBookmarkFilter(false);
     setIsFavoriteFilter(false);
-    onFilter(sessions);
+    setSearchQuery(parseSearchQuery(''));
   };
 
   const toggleBookmarkFilter = () => {
@@ -191,6 +193,10 @@ export function SearchBox({ sessions, placeholder = 'Search...', onFilter, class
     setIsFavoriteFilter(newState);
     handleSearchChange(searchText.replace(/\s*type:(bookmarked|favorite)\s*/g, ' '), isBookmarkFilter, newState);
   };
+
+  React.useEffect(() => {
+    onFilter(filterSessions(sessions, searchQuery));
+  }, [sessions, searchQuery, onFilter]);
 
   return (
     <div className={cn("space-y-2", className)}>
