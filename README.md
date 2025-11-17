@@ -6,7 +6,7 @@ Features:
 - Multiple chat sessions with search and filtering
 - Model selection and parameter tuning
 - Automatic conversation naming and tagging
-- System prompt customization
+- System prompt customization with reusable prompt templates
 - Markdown support with code highlighting
 - Bookmarks and favorites support
 
@@ -47,6 +47,7 @@ ollama pull llama2
 - The new user prompt text box is selected so the user can starting typing after the assistant message is generated
 ### System Prompt
 - The user can enter a system prompt into a text box
+- The user can save any system prompt as a reusable template, apply templates to new sessions, and manage saved templates
 ### Streaming
 - Support Ollama `stream: true`
 - Text is displayed as it streams from Ollama
