@@ -6,12 +6,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { ResizableBox } from 'react-resizable';
-import { ChevronRight, ChevronLeft, RotateCcw } from 'lucide-react'; // Added ChevronLeft
+import { ChevronRight, ChevronLeft, RotateCcw, Trash2 } from 'lucide-react'; // Added ChevronLeft
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useModelStore } from '@/stores/modelStore'; // Import useModelStore
 import type { ChatSession, Options as OllamaAppOptions } from '@/components/types';
+import { useSystemPromptStore } from '@/stores/systemPromptStore';
 
 import 'react-resizable/css/styles.css';
 import { useState } from 'react';
@@ -30,6 +31,10 @@ const SettingsSidebar = ({ session }: SettingsSidebarProps) => {
   const updateSessionSystemPrompt = useSessionStore(state => state.updateSessionSystemPrompt);
   const updateSessionOptions = useSessionStore(state => state.updateSessionOptions);
 
+  const templates = useSystemPromptStore(state => state.templates);
+  const addTemplate = useSystemPromptStore(state => state.addTemplate);
+  const deleteTemplate = useSystemPromptStore(state => state.deleteTemplate);
+
   // Local UI state (remains the same)
   const [isCollapsed, setIsCollapsed] = useState(false); // Default to false (visible) for now
   const SIDEBAR_WIDTH_KEY = 'settingsSidebarWidth';
@@ -39,6 +44,7 @@ const SettingsSidebar = ({ session }: SettingsSidebarProps) => {
   };
   const [expandedWidth, setExpandedWidth] = useState(getInitialWidth);
   const [isResizing, setIsResizing] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState('');
 
   const currentWidth = isCollapsed ? 1 : expandedWidth; // Use 1px when collapsed
 
@@ -54,6 +60,18 @@ const SettingsSidebar = ({ session }: SettingsSidebarProps) => {
     const newOptions = { ...(session.options || {}) };
     delete (newOptions as any)[key];
     updateSessionOptions(session.id, Object.keys(newOptions).length === 0 ? undefined : newOptions);
+  };
+
+  const handleSaveTemplate = () => {
+    if (!session.systemPrompt.trim()) return;
+    addTemplate(newTemplateName, session.systemPrompt);
+    setNewTemplateName('');
+  };
+
+  const handleApplyTemplate = (templateId: string) => {
+    const template = templates.find(t => t.id === templateId);
+    if (!template) return;
+    updateSessionSystemPrompt(session.id, template.content);
   };
 
   const renderSliderSetting = (
@@ -184,6 +202,64 @@ const SettingsSidebar = ({ session }: SettingsSidebarProps) => {
                 placeholder="Enter system prompt..."
                 className="min-h-[100px] resize-y"
               />
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Prompt Templates</Label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSaveTemplate}
+                  disabled={!session.systemPrompt.trim()}
+                >
+                  Save current prompt
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={newTemplateName}
+                  onChange={(event) => setNewTemplateName(event.target.value)}
+                  placeholder="Template name (optional)"
+                />
+              </div>
+              <div className="max-h-48 space-y-2 overflow-y-auto rounded-md border p-2">
+                {templates.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No saved templates yet.</p>
+                ) : (
+                  templates.map(template => (
+                    <div
+                      key={template.id}
+                      className="flex items-start justify-between gap-2 rounded-md border p-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground">{template.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {template.content}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleApplyTemplate(template.id)}
+                        >
+                          Apply
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => deleteTemplate(template.id)}
+                          disabled={template.isDefault}
+                          title={template.isDefault ? 'Default template cannot be deleted' : 'Delete template'}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
 
             <div className="space-y-4">

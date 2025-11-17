@@ -4,8 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import ollama from 'ollama';
 import type { ChatSession, Message, Options as OllamaAppOptions } from '@/components/types';
 import { useModelStore } from './modelStore'; // Import the model store
-
-const DEFAULT_SYSTEM_PROMPT = 'You are a helpful AI assistant.';
+import { DEFAULT_SYSTEM_PROMPT } from '@/constants/systemPrompts';
 const DEFAULT_SESSION_NAME = 'New Chat';
 
 // Model interface is removed here, it's defined in modelStore.ts
@@ -32,7 +31,7 @@ export interface SessionState {
   updateSessionMessages: (sessionId: string, messages: Message[]) => void;
   updateSessionSystemPrompt: (sessionId: string, systemPrompt: string) => void;
   updateSessionModel: (sessionId: string, model: string) => void;
-  updateSessionOptions: (sessionId: string, options: Partial<OllamaAppOptions>) => void;
+  updateSessionOptions: (sessionId: string, options?: Partial<OllamaAppOptions>) => void;
   setSessionTags: (sessionId: string, tags: string[]) => void;
   setSessionNotes: (sessionId: string, notes: string) => void;
   toggleBookmark: (sessionId: string) => void;
@@ -153,10 +152,16 @@ export const useSessionStore = create<SessionState>()(
         get().updateSession(sessionId, { model });
       },
 
-      updateSessionOptions: (sessionId: string, options: Partial<OllamaAppOptions>) => {
+      updateSessionOptions: (sessionId: string, options?: Partial<OllamaAppOptions>) => {
         const currentSession = get().sessions.find(s => s.id === sessionId);
         if (currentSession) {
-          get().updateSession(sessionId, { options: {...currentSession.options, ...options }});
+          if (!options || Object.keys(options).length === 0) {
+            get().updateSession(sessionId, { options: undefined });
+            return;
+          }
+
+          const mergedOptions = { ...(currentSession.options || {}), ...options };
+          get().updateSession(sessionId, { options: mergedOptions });
         }
       },
 
